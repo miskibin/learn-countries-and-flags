@@ -6,6 +6,7 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -20,6 +21,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -38,9 +40,39 @@ import com.miskibin.poznajswiat.data.MASTERY_STREAK
 import kotlin.math.min
 
 val CorrectGreen = Color(0xFF2E7D32)
-val CorrectGreenContainer = Color(0xFFB7E3B9)
 val WrongRed = Color(0xFFC62828)
-val WrongRedContainer = Color(0xFFF5C6C4)
+
+/** High-contrast answer-feedback colors, adapted to the light/dark theme. */
+class AnswerColors(
+    val correctContainer: Color,
+    val onCorrect: Color,
+    val wrongContainer: Color,
+    val onWrong: Color,
+    val correctAccent: Color,
+    val wrongAccent: Color,
+)
+
+@Composable
+fun rememberAnswerColors(): AnswerColors {
+    val dark = isSystemInDarkTheme()
+    return remember(dark) {
+        if (dark) AnswerColors(
+            correctContainer = Color(0xFF1B4D1F),
+            onCorrect = Color(0xFFC6ECC7),
+            wrongContainer = Color(0xFF5C1A17),
+            onWrong = Color(0xFFFFD9D6),
+            correctAccent = Color(0xFF81C784),
+            wrongAccent = Color(0xFFE57373),
+        ) else AnswerColors(
+            correctContainer = Color(0xFFB5E2B7),
+            onCorrect = Color(0xFF07360A),
+            wrongContainer = Color(0xFFF3C1BE),
+            onWrong = Color(0xFF450C0A),
+            correctAccent = CorrectGreen,
+            wrongAccent = WrongRed,
+        )
+    }
+}
 
 @Composable
 fun FlagImage(

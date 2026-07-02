@@ -2,17 +2,19 @@
 
 Aplikacja na Androida do nauki krajów świata — ich **flag**, **stolic** i **położenia na mapie**. W całości po polsku, działa w pełni offline.
 
-| Ekran główny | Quiz mapy | Oś czasu | Szczegóły kraju |
+| Ekran główny | Quiz mapy | Mapa wiedzy | Oś czasu |
 |---|---|---|---|
-| ![Ekran główny](docs/screenshots/01_home.png) | ![Quiz mapy](docs/screenshots/04_map_quiz.png) | ![Oś czasu](docs/screenshots/11_timeline.png) | ![Szczegóły](docs/screenshots/07_detail.png) |
+| ![Ekran główny](docs/screenshots/01_home.png) | ![Quiz mapy](docs/screenshots/04_map_quiz.png) | ![Mapa wiedzy](docs/screenshots/12_knowledge.png) | ![Oś czasu](docs/screenshots/11_timeline.png) |
 
 ## Funkcje
 
 - **Powtórka dnia (spaced repetition)** — każde pytanie ma termin kolejnej powtórki (1 → 2 → 4 → 7 → 14 → 30 → 60 → 120 dni przy poprawnych odpowiedziach, reset przy błędzie). Codzienna sesja miesza flagi, mapę, stolice i historię naprzemiennie, a licznik serii dni motywuje do regularności.
-- **Quiz „Flagi"** — zgadnij, do którego kraju należy pokazana flaga (4 odpowiedzi do wyboru).
-- **Quiz „Mapa"** — wskaż podany kraj na interaktywnej mapie świata (przybliżanie, przesuwanie, 3 próby na pytanie; mikropaństwa jako znaczniki).
+- **Ścieżka nauki** — kontynenty opanowujesz po kolei (Europa → Azja → obie Ameryki → Afryka → Oceania); aplikacja rekomenduje następny i uruchamia przeplataną sesję (flagi + mapa + stolice + powiązana historia) dla tego regionu.
+- **Mapa wiedzy** — świat pokolorowany Twoimi postępami (nowe / w trakcie / opanowane) z paskami postępu per kontynent; dotknięcie kraju otwiera jego szczegóły.
+- **Quiz „Flagi"** — zgadnij kraj po fladze albo (losowo) flagę po kraju z siatki czterech flag.
+- **Quiz „Mapa"** — wskaż podany kraj na interaktywnej mapie świata (przybliżanie, przesuwanie, 3 próby na pytanie, przycisk „Nie wiem — pokaż" z najazdem kamery na odpowiedź).
 - **Quiz „Stolice"** — dopasuj stolicę do kraju.
-- **Quiz „Historia"** — dopasuj rok do wydarzenia z dziejów świata.
+- **Quiz „Historia"** — dopasuj rok do wydarzenia; po odpowiedzi mini-oś czasu pokazuje epokę oraz najbliższe wcześniejsze i późniejsze wydarzenie.
 - **Oś czasu** — 90 najważniejszych wydarzeń historii świata (od rewolucji neolitycznej po XXI wiek) podzielonych na epoki, z powiązanymi krajami.
 - **Przeglądaj kraje** — lista 197 krajów z wyszukiwarką (ignoruje polskie znaki), filtrem kontynentów, ciekawostką i mini-mapą dla każdego kraju. Ekran kraju pokazuje region (np. „Europa Środkowa"), klikalnych sąsiadów i wydarzenia historyczne związane z krajem — wiedza łączy się w całość.
 - **Postępy nauki** — inteligentny dobór pytań (częściej pyta o to, czego jeszcze nie opanowałeś), seria 3 poprawnych odpowiedzi = materiał opanowany; statystyki na ekranie głównym.

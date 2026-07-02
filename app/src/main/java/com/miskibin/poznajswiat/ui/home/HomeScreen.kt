@@ -20,10 +20,12 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.MenuBook
+import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.material.icons.filled.Flag
 import androidx.compose.material.icons.filled.HistoryEdu
 import androidx.compose.material.icons.filled.LocalFireDepartment
 import androidx.compose.material.icons.filled.LocationCity
+import androidx.compose.material.icons.filled.Map
 import androidx.compose.material.icons.filled.Public
 import androidx.compose.material.icons.filled.Replay
 import androidx.compose.material.icons.filled.Timeline
@@ -48,10 +50,13 @@ import androidx.compose.ui.unit.dp
 import com.miskibin.poznajswiat.R
 import com.miskibin.poznajswiat.data.AppData
 import com.miskibin.poznajswiat.data.CONTINENTS
+import com.miskibin.poznajswiat.data.PATH_ORDER
 import com.miskibin.poznajswiat.data.Progress
 import com.miskibin.poznajswiat.data.QuizMode
 import com.miskibin.poznajswiat.ui.ScoreRing
 import com.miskibin.poznajswiat.ui.StatColumn
+import com.miskibin.poznajswiat.ui.map.continentMastery
+import com.miskibin.poznajswiat.ui.map.modesFor
 import java.time.LocalDate
 
 @Composable
@@ -63,6 +68,7 @@ fun HomeScreen(
     onStartSession: (String) -> Unit,
     onOpenLearn: () -> Unit,
     onOpenTimeline: () -> Unit,
+    onOpenKnowledge: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -84,6 +90,9 @@ fun HomeScreen(
         Spacer(Modifier.height(16.dp))
 
         ReviewCard(progress, onStart = { onStartSession("powtorka") })
+        Spacer(Modifier.height(12.dp))
+
+        LearningPathCard(data, progress, onStartSession, onContinentChange)
         Spacer(Modifier.height(12.dp))
 
         StatsCard(data, progress)
@@ -153,6 +162,15 @@ fun HomeScreen(
         )
         Spacer(Modifier.height(12.dp))
         ModeCard(
+            icon = Icons.Default.Map,
+            title = stringResource(R.string.knowledge_title),
+            description = stringResource(R.string.knowledge_desc),
+            container = MaterialTheme.colorScheme.tertiaryContainer,
+            onContainer = MaterialTheme.colorScheme.onTertiaryContainer,
+            onClick = onOpenKnowledge,
+        )
+        Spacer(Modifier.height(12.dp))
+        ModeCard(
             icon = Icons.AutoMirrored.Filled.MenuBook,
             title = stringResource(R.string.mode_learn_title),
             description = stringResource(R.string.mode_learn_desc),
@@ -161,6 +179,79 @@ fun HomeScreen(
             onClick = onOpenLearn,
         )
         Spacer(Modifier.height(24.dp))
+    }
+}
+
+/**
+ * Guided path: master continents one by one. Recommends the first continent
+ * (in PATH_ORDER) that is not yet 80% mastered and starts an interleaved
+ * session scoped to it.
+ */
+@Composable
+private fun LearningPathCard(
+    data: AppData,
+    progress: Progress,
+    onStartSession: (String) -> Unit,
+    onContinentChange: (String?) -> Unit,
+) {
+    val fractions = remember(progress, data) {
+        PATH_ORDER.associateWith { continent ->
+            continentMastery(progress, data.countries.filter { it.continent == continent })
+        }
+    }
+    val recommended = PATH_ORDER.firstOrNull { (fractions[it] ?: 0f) < 0.8f } ?: PATH_ORDER.last()
+
+    Card(colors = CardDefaults.cardColors()) {
+        Column(Modifier.padding(14.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    Icons.AutoMirrored.Filled.TrendingUp,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                )
+                Spacer(Modifier.width(10.dp))
+                Text(
+                    stringResource(R.string.path_title),
+                    style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier.weight(1f),
+                )
+                Button(onClick = {
+                    onContinentChange(recommended)
+                    onStartSession("mix")
+                }) {
+                    Text(stringResource(R.string.path_learn, recommended))
+                }
+            }
+            Spacer(Modifier.height(12.dp))
+            LazyRow(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+                items(PATH_ORDER) { continent ->
+                    val fraction = fractions[continent] ?: 0f
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        ScoreRing(
+                            fraction = fraction,
+                            modifier = Modifier.size(46.dp),
+                            ringWidth = 5.dp,
+                            color = if (continent == recommended) {
+                                MaterialTheme.colorScheme.primary
+                            } else Color(0xFF43A047),
+                        ) {
+                            Text(
+                                "${(fraction * 100).toInt()}%",
+                                style = MaterialTheme.typography.labelSmall,
+                            )
+                        }
+                        Spacer(Modifier.height(4.dp))
+                        Text(
+                            continent.replace("Ameryka ", "Am. "),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = if (continent == recommended) {
+                                MaterialTheme.colorScheme.primary
+                            } else MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -219,11 +310,10 @@ private fun ReviewCard(progress: Progress, onStart: () -> Unit) {
 
 @Composable
 private fun StatsCard(data: AppData, progress: Progress) {
-    val totalSlots = data.countries.size * 3 + data.events.size
-    val mastered =
-        listOf(QuizMode.FLAGS, QuizMode.MAP, QuizMode.CAPITALS).sumOf { mode ->
-            progress.masteredCount(mode, data.countries.map { it.cca2 })
-        } + progress.masteredCount(QuizMode.HISTORY, data.events.map { it.id.toString() })
+    val totalSlots = data.countries.sumOf { modesFor(it).size } + data.events.size
+    val mastered = data.countries.sumOf { c ->
+        modesFor(c).count { progress.isMastered(it, c.cca2) }
+    } + progress.masteredCount(QuizMode.HISTORY, data.events.map { it.id.toString() })
     val attempts = progress.totalAttempts
     val accuracy = if (attempts == 0) 0 else (100 * progress.totalCorrect / attempts)
     val today = remember { LocalDate.now().toEpochDay() }

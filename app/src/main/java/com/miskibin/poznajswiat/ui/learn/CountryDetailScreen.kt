@@ -134,7 +134,7 @@ fun CountryDetailScreen(
             ) {
                 WorldMapView(
                     map = data.worldMap,
-                    countries = data.countries,
+                    markerCountries = if (country.hasPoly) emptyList() else listOf(country),
                     interactive = false,
                     focusOn = country,
                     fillFor = { code -> if (code == country.cca2) highlight else null },

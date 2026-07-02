@@ -7,6 +7,7 @@ import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextInput
 import org.junit.Rule
 import org.junit.Test
@@ -54,6 +55,7 @@ class AppSmokeTest {
         awaitText("Poznaj Świat")
         awaitText("Stolice")
         awaitText("Powtórka dnia")
+        awaitText("Ścieżka nauki")
         screenshot("01_home")
 
         // Flag quiz: answer the first question and advance to the second.
@@ -73,15 +75,26 @@ class AppSmokeTest {
         rule.activityRule.scenario.onActivity { it.onBackPressedDispatcher.onBackPressed() }
         awaitText("Stolice")
 
-        // Map quiz
+        // Map quiz: use the "I don't know" reveal
         rule.onNodeWithText("Wskaż kraj na mapie świata").performClick()
         awaitText("Wskaż na mapie")
         screenshot("04_map_quiz")
+        rule.onNodeWithText("Nie wiem — pokaż").performClick()
+        awaitText("Dalej")
+        screenshot("04b_map_reveal")
+        rule.activityRule.scenario.onActivity { it.onBackPressedDispatcher.onBackPressed() }
+        awaitText("Stolice")
+
+        // Knowledge map
+        rule.onNodeWithText("Zobacz na mapie, ile już umiesz").performScrollTo().performClick()
+        awaitText("W trakcie")
+        screenshot("12_knowledge")
         rule.activityRule.scenario.onActivity { it.onBackPressedDispatcher.onBackPressed() }
         awaitText("Stolice")
 
         // History quiz: answer one year question
-        rule.onNodeWithText("Dopasuj daty do wydarzeń z dziejów świata").performClick()
+        rule.onNodeWithText("Dopasuj daty do wydarzeń z dziejów świata")
+            .performScrollTo().performClick()
         awaitText("W którym roku miało miejsce to wydarzenie?")
         rule.waitUntil(15_000) {
             rule.onAllNodesWithTag("quiz_option").fetchSemanticsNodes().size == 4
@@ -89,26 +102,29 @@ class AppSmokeTest {
         screenshot("08_history_quiz")
         rule.onAllNodesWithTag("quiz_option")[0].performClick()
         awaitText("Dalej")
+        awaitText("Nowożytność") // timeline bar era labels
         screenshot("09_history_quiz_answered")
         rule.activityRule.scenario.onActivity { it.onBackPressedDispatcher.onBackPressed() }
         awaitText("Stolice")
 
         // Review session (mixed; seeded by the answers given above)
-        rule.onNodeWithText("Start").performClick()
+        rule.onNodeWithText("Start").performScrollTo().performClick()
         awaitText("Pytanie 1 z")
         screenshot("10_review")
         rule.activityRule.scenario.onActivity { it.onBackPressedDispatcher.onBackPressed() }
         awaitText("Stolice")
 
         // Timeline
-        rule.onNodeWithText("Najważniejsze wydarzenia w historii świata").performClick()
+        rule.onNodeWithText("Najważniejsze wydarzenia w historii świata")
+            .performScrollTo().performClick()
         awaitText("Starożytność")
         screenshot("11_timeline")
         rule.activityRule.scenario.onActivity { it.onBackPressedDispatcher.onBackPressed() }
         awaitText("Stolice")
 
         // Learn + search + detail (with neighbors and history sections)
-        rule.onNodeWithText("Poznaj wszystkie kraje, flagi i ciekawostki").performClick()
+        rule.onNodeWithText("Poznaj wszystkie kraje, flagi i ciekawostki")
+            .performScrollTo().performClick()
         awaitText("Szukaj kraju lub stolicy")
         screenshot("05_learn")
         rule.onNodeWithText("Szukaj kraju lub stolicy…").performTextInput("Polska")

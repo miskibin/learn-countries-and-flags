@@ -68,31 +68,34 @@ private fun ringsToPath(rings: List<FloatArray>, path: Path = Path()): Path {
 
 /**
  * Interactive world map: pinch to zoom, drag to pan, double-tap to zoom, tap to
- * select a country. Countries without a polygon (microstates) are drawn as
- * fixed-size markers with a generous touch radius.
+ * select a country. [markerCountries] (microstates without polygons) are drawn
+ * as fixed-size dots with a generous touch radius — pass only the ones that are
+ * meaningful for the given screen, an always-on swarm of dots is just noise.
+ * Changing [resetKey] resets the camera (e.g. between quiz questions).
  */
 @Composable
 fun WorldMapView(
     map: WorldMap,
-    countries: List<Country>,
     modifier: Modifier = Modifier,
+    markerCountries: List<Country> = emptyList(),
     interactive: Boolean = true,
     fillFor: (String) -> Color? = { null },
     onTap: ((String?) -> Unit)? = null,
     focusOn: Country? = null,
+    resetKey: Any? = null,
 ) {
     val colors = rememberMapColors()
     val density = LocalDensity.current
 
     val paths = remember(map) { map.shapes.mapValues { (_, s) -> ringsToPath(s.rings) } }
     val backgroundPath = remember(map) { ringsToPath(map.background) }
-    val markers = remember(map, countries) {
-        countries.filter { !it.hasPoly }.map { it to map.project(it.lat, it.lng) }
+    val markers = remember(map, markerCountries) {
+        markerCountries.filter { !it.hasPoly }.map { it to map.project(it.lat, it.lng) }
     }
 
-    var zoom by remember { mutableFloatStateOf(1f) }
+    var zoom by remember(resetKey) { mutableFloatStateOf(1f) }
     // null = camera untouched -> keep the map centered.
-    var panState by remember { mutableStateOf<Offset?>(null) }
+    var panState by remember(resetKey) { mutableStateOf<Offset?>(null) }
     var viewSize by remember { mutableStateOf(IntSize.Zero) }
 
     fun baseScale(size: IntSize): Float =

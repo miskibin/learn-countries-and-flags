@@ -7,6 +7,8 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -33,7 +35,9 @@ import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.HistoryEdu
 import androidx.compose.material.icons.filled.Lightbulb
+import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -51,6 +55,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
@@ -59,12 +64,12 @@ import androidx.compose.ui.unit.dp
 import com.miskibin.poznajswiat.R
 import com.miskibin.poznajswiat.data.QuizMode
 import com.miskibin.poznajswiat.ui.CorrectGreen
-import com.miskibin.poznajswiat.ui.CorrectGreenContainer
 import com.miskibin.poznajswiat.ui.FlagImage
 import com.miskibin.poznajswiat.ui.ScoreRing
 import com.miskibin.poznajswiat.ui.WrongRed
-import com.miskibin.poznajswiat.ui.WrongRedContainer
+import com.miskibin.poznajswiat.ui.history.TimelineBar
 import com.miskibin.poznajswiat.ui.map.WorldMapView
+import com.miskibin.poznajswiat.ui.rememberAnswerColors
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -148,7 +153,16 @@ private fun OptionsQuestionContent(
             .padding(horizontal = 16.dp),
     ) {
         when (q.kind) {
-            QuizMode.FLAGS -> {
+            QuizMode.FLAGS -> if (q.reverse) {
+                QuestionTitle(stringResource(R.string.quiz_question_flag_reverse))
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    q.target!!.namePl,
+                    style = MaterialTheme.typography.headlineSmall,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            } else {
                 QuestionTitle(stringResource(R.string.quiz_question_flags))
                 Spacer(Modifier.height(16.dp))
                 Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
@@ -211,21 +225,25 @@ private fun OptionsQuestionContent(
 
         Spacer(Modifier.height(24.dp))
 
-        val options: List<Pair<String, String>> = when (q.kind) {
-            QuizMode.HISTORY -> q.yearOptions.map {
-                it.toString() to if (it < 0) "${-it} p.n.e." else it.toString()
+        if (q.kind == QuizMode.FLAGS && q.reverse) {
+            FlagGridOptions(viewModel, state, q)
+        } else {
+            val options: List<Pair<String, String>> = when (q.kind) {
+                QuizMode.HISTORY -> q.yearOptions.map {
+                    it.toString() to if (it < 0) "${-it} p.n.e." else it.toString()
+                }
+                QuizMode.CAPITALS -> q.options.map { it.cca2 to it.capitalPl }
+                else -> q.options.map { it.cca2 to it.namePl }
             }
-            QuizMode.CAPITALS -> q.options.map { it.cca2 to it.capitalPl }
-            else -> q.options.map { it.cca2 to it.namePl }
-        }
-        options.forEach { (key, label) ->
-            OptionCard(
-                label = label,
-                isTarget = key == q.correctKey,
-                isSelected = state.selected == key,
-                answered = state.answered,
-                onClick = { viewModel.answer(key) },
-            )
+            options.forEach { (key, label) ->
+                OptionCard(
+                    label = label,
+                    isTarget = key == q.correctKey,
+                    isSelected = state.selected == key,
+                    answered = state.answered,
+                    onClick = { viewModel.answer(key) },
+                )
+            }
         }
 
         AnimatedVisibility(
@@ -235,11 +253,64 @@ private fun OptionsQuestionContent(
             Column {
                 Spacer(Modifier.height(10.dp))
                 FactCard(fact = q.target?.fact ?: q.event?.desc.orEmpty())
+                if (q.kind == QuizMode.HISTORY && q.event != null) {
+                    Spacer(Modifier.height(12.dp))
+                    TimelineBar(event = q.event, allEvents = data.events)
+                }
                 Spacer(Modifier.height(12.dp))
                 NextButton(viewModel, state)
             }
         }
         Spacer(Modifier.height(24.dp))
+    }
+}
+
+/** Reverse flag question: four flags in a 2x2 grid, pick the right one. */
+@Composable
+private fun FlagGridOptions(
+    viewModel: QuizViewModel,
+    state: QuizUiState,
+    q: Question,
+) {
+    val data = state.data ?: return
+    val answers = rememberAnswerColors()
+    q.options.chunked(2).forEach { rowOptions ->
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .padding(vertical = 6.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            rowOptions.forEach { option ->
+                val isTarget = option.cca2 == q.correctKey
+                val isSelected = state.selected == option.cca2
+                val borderColor = when {
+                    state.answered && isTarget -> answers.correctAccent
+                    state.answered && isSelected -> answers.wrongAccent
+                    else -> Color.Transparent
+                }
+                Box(
+                    Modifier
+                        .weight(1f)
+                        .clip(RoundedCornerShape(14.dp))
+                        .border(3.dp, borderColor, RoundedCornerShape(14.dp))
+                        .clickable(enabled = !state.answered) {
+                            viewModel.answer(option.cca2)
+                        }
+                        .padding(6.dp)
+                        .testTag("quiz_option"),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    FlagImage(
+                        resId = data.flagRes[option.cca2] ?: 0,
+                        contentDescription = option.namePl,
+                        modifier = Modifier.fillMaxWidth(),
+                        corner = 10.dp,
+                    )
+                }
+            }
+            if (rowOptions.size == 1) Spacer(Modifier.weight(1f))
+        }
     }
 }
 
@@ -261,19 +332,21 @@ private fun OptionCard(
     answered: Boolean,
     onClick: () -> Unit,
 ) {
+    val answers = rememberAnswerColors()
     val container by animateColorAsState(
         targetValue = when {
-            answered && isTarget -> CorrectGreenContainer
-            answered && isSelected -> WrongRedContainer
+            answered && isTarget -> answers.correctContainer
+            answered && isSelected -> answers.wrongContainer
             else -> MaterialTheme.colorScheme.surfaceVariant
         },
         animationSpec = tween(300),
         label = "optionColor",
     )
     val content = when {
-        answered && isTarget -> Color(0xFF0A3D0C)
-        answered && isSelected -> Color(0xFF4E0F0D)
-        else -> MaterialTheme.colorScheme.onSurfaceVariant
+        answered && isTarget -> answers.onCorrect
+        answered && isSelected -> answers.onWrong
+        answered -> MaterialTheme.colorScheme.onSurfaceVariant
+        else -> MaterialTheme.colorScheme.onSurface
     }
     Card(
         colors = CardDefaults.cardColors(containerColor = container),
@@ -296,9 +369,9 @@ private fun OptionCard(
                 modifier = Modifier.weight(1f),
             )
             if (answered && isTarget) {
-                Icon(Icons.Default.CheckCircle, null, tint = CorrectGreen)
+                Icon(Icons.Default.CheckCircle, null, tint = content)
             } else if (answered && isSelected && !isTarget) {
-                Icon(Icons.Default.Cancel, null, tint = WrongRed)
+                Icon(Icons.Default.Cancel, null, tint = content)
             }
         }
     }
@@ -363,7 +436,6 @@ private fun MapQuestionContent(
     Box(Modifier.fillMaxSize()) {
         WorldMapView(
             map = data.worldMap,
-            countries = data.countries,
             interactive = true,
             fillFor = { code ->
                 when {
@@ -373,7 +445,29 @@ private fun MapQuestionContent(
                 }
             },
             onTap = { code -> viewModel.mapTap(code) },
+            focusOn = if (state.revealed) target else null,
+            resetKey = state.index,
         )
+
+        if (!state.answered) {
+            OutlinedButton(
+                onClick = { viewModel.reveal() },
+                colors = ButtonDefaults.outlinedButtonColors(
+                    containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.9f),
+                ),
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(12.dp),
+            ) {
+                Icon(
+                    Icons.Default.Visibility,
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp),
+                )
+                Spacer(Modifier.width(6.dp))
+                Text(stringResource(R.string.quiz_reveal))
+            }
+        }
 
         Column(
             Modifier

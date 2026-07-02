@@ -28,6 +28,16 @@
     <string name="review_none_due">Brak zaległych powtórek — poznaj coś nowego!</string>
     <string name="review_start">Start</string>
 
+    <string name="path_title">Ścieżka nauki</string>
+    <string name="path_learn">Ucz się: %1$s</string>
+
+    <string name="knowledge_title">Mapa wiedzy</string>
+    <string name="knowledge_desc">Zobacz na mapie, ile już umiesz</string>
+    <string name="knowledge_tap_hint">Dotknij kraju na mapie, aby zobaczyć szczegóły.</string>
+    <string name="legend_new">Nowe</string>
+    <string name="legend_started">W trakcie</string>
+    <string name="legend_mastered">Opanowane</string>
+
     <string name="stats_mastered">Opanowane</string>
     <string name="stats_answers">Odpowiedzi</string>
     <string name="stats_accuracy">Skuteczność</string>
@@ -37,6 +47,8 @@
     <string name="quiz_question_capitals">Jakie miasto jest stolicą tego kraju?</string>
     <string name="quiz_question_map">Wskaż na mapie:</string>
     <string name="quiz_question_history">W którym roku miało miejsce to wydarzenie?</string>
+    <string name="quiz_question_flag_reverse">Która flaga należy do tego kraju?</string>
+    <string name="quiz_reveal">Nie wiem — pokaż</string>
     <string name="quiz_progress">Pytanie %1$d z %2$d</string>
     <string name="quiz_correct">Dobrze!</string>
     <string name="quiz_wrong">Niestety, to %1$s</string>

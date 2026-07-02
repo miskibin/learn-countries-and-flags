@@ -53,6 +53,19 @@ enum class QuizMode(val id: String) {
 /** Mixed spaced-repetition session; not a storage category of its own. */
 const val SESSION_REVIEW = "powtorka"
 
+/** Mixed-mode session over one continent — the "learning path" unit. */
+const val SESSION_MIX = "mix"
+
+/** Continent order for the guided learning path. */
+val PATH_ORDER = listOf(
+    "Europa",
+    "Azja",
+    "Ameryka Północna",
+    "Ameryka Południowa",
+    "Afryka",
+    "Oceania",
+)
+
 const val QUESTIONS_PER_SESSION = 10
 const val REVIEW_SESSION_SIZE = 12
 const val MASTERY_STREAK = 3

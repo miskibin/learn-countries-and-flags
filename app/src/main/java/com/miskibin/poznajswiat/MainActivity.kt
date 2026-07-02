@@ -37,6 +37,7 @@ import com.miskibin.poznajswiat.ui.history.TimelineScreen
 import com.miskibin.poznajswiat.ui.home.HomeScreen
 import com.miskibin.poznajswiat.ui.learn.CountryDetailScreen
 import com.miskibin.poznajswiat.ui.learn.LearnScreen
+import com.miskibin.poznajswiat.ui.map.KnowledgeMapScreen
 import com.miskibin.poznajswiat.ui.quiz.QuizScreen
 import com.miskibin.poznajswiat.ui.quiz.QuizViewModel
 import com.miskibin.poznajswiat.ui.theme.PoznajSwiatTheme
@@ -94,7 +95,16 @@ fun AppNav() {
                     navController.navigate("learn?c=${Uri.encode(continent ?: "")}")
                 },
                 onOpenTimeline = { navController.navigate("timeline") },
+                onOpenKnowledge = { navController.navigate("knowledge") },
                 modifier = Modifier.safeDrawingPadding(),
+            )
+        }
+        composable("knowledge") {
+            KnowledgeMapScreen(
+                data = data,
+                progress = progress,
+                onOpenCountry = { cca2 -> navController.navigate("country/$cca2") },
+                onBack = { navController.popBackStack() },
             )
         }
         composable(
