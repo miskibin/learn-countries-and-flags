@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- globe -->
+    <path
+        android:fillColor="#E8F4FD"
+        android:pathData="M54,40 a20,20 0 1,0 0.001,0 z" />
+    <!-- land -->
+    <path
+        android:fillColor="#66BB6A"
+        android:pathData="M42,50 q6,-5 12,-2 q5,3 2,8 q-4,5 -10,3 q-7,-2 -4,-9 z" />
+    <path
+        android:fillColor="#66BB6A"
+        android:pathData="M58,64 q6,-2 9,2 q2,5 -2,8 q-6,3 -9,-2 q-2,-4 2,-8 z" />
+    <!-- meridian -->
+    <path
+        android:strokeColor="#1565C0"
+        android:strokeWidth="2"
+        android:fillColor="#00000000"
+        android:pathData="M54,40 c-8,0 -10,9 -10,20 c0,11 2,20 10,20 c8,0 10,-9 10,-20 c0,-11 -2,-20 -10,-20 z" />
+    <!-- equator -->
+    <path
+        android:strokeColor="#1565C0"
+        android:strokeWidth="2"
+        android:fillColor="#00000000"
+        android:pathData="M34.5,60 L73.5,60" />
+    <!-- globe outline -->
+    <path
+        android:strokeColor="#0D47A1"
+        android:strokeWidth="3"
+        android:fillColor="#00000000"
+        android:pathData="M54,40 a20,20 0 1,0 0.001,0 z" />
+    <!-- flag pole -->
+    <path
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="2.5"
+        android:strokeLineCap="round"
+        android:fillColor="#00000000"
+        android:pathData="M54,24 L54,40" />
+    <!-- flag -->
+    <path
+        android:fillColor="#E53935"
+        android:pathData="M54,24 L68,28 L54,32 z" />
+</vector>

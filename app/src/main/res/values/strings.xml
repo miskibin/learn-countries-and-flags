@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Poznaj Świat</string>
+    <string name="home_subtitle">Ucz się krajów, flag i mapy świata</string>
+
+    <string name="continent_all">Wszystkie</string>
+
+    <string name="mode_flags_title">Flagi</string>
+    <string name="mode_flags_desc">Zgadnij, do którego kraju należy flaga</string>
+    <string name="mode_map_title">Mapa</string>
+    <string name="mode_map_desc">Wskaż kraj na mapie świata</string>
+    <string name="mode_capitals_title">Stolice</string>
+    <string name="mode_capitals_desc">Dopasuj stolicę do kraju</string>
+    <string name="mode_learn_title">Przeglądaj kraje</string>
+    <string name="mode_learn_desc">Poznaj wszystkie kraje, flagi i ciekawostki</string>
+
+    <string name="stats_mastered">Opanowane</string>
+    <string name="stats_answers">Odpowiedzi</string>
+    <string name="stats_accuracy">Skuteczność</string>
+
+    <string name="quiz_question_flags">Do którego kraju należy ta flaga?</string>
+    <string name="quiz_question_capitals">Jakie miasto jest stolicą tego kraju?</string>
+    <string name="quiz_question_map">Wskaż na mapie:</string>
+    <string name="quiz_progress">Pytanie %1$d z %2$d</string>
+    <string name="quiz_correct">Dobrze!</string>
+    <string name="quiz_wrong">Niestety, to %1$s</string>
+    <string name="quiz_map_wrong_tap">To %1$s. Spróbuj jeszcze raz!</string>
+    <string name="quiz_map_revealed">Prawidłowa odpowiedź została podświetlona</string>
+    <string name="quiz_next">Dalej</string>
+    <string name="quiz_finish">Zakończ</string>
+    <string name="quiz_fact_label">Ciekawostka</string>
+
+    <string name="results_title">Twój wynik</string>
+    <string name="results_score">%1$d / %2$d</string>
+    <string name="results_perfect">Perfekcyjnie! Jesteś mistrzem geografii! 🏆</string>
+    <string name="results_great">Świetna robota! 🎉</string>
+    <string name="results_good">Nieźle! Ćwicz dalej 💪</string>
+    <string name="results_keep_trying">Każda próba czegoś uczy — spróbuj ponownie!</string>
+    <string name="results_play_again">Zagraj ponownie</string>
+    <string name="results_home">Menu główne</string>
+
+    <string name="learn_search_hint">Szukaj kraju lub stolicy…</string>
+    <string name="learn_empty">Nie znaleziono krajów</string>
+
+    <string name="detail_capital">Stolica</string>
+    <string name="detail_continent">Kontynent</string>
+    <string name="detail_fact">Ciekawostka</string>
+    <string name="detail_location">Położenie</string>
+    <string name="detail_progress">Twoje postępy</string>
+
+    <string name="back">Wstecz</string>
+    <string name="close">Zamknij</string>
+    <string name="map_zoom_hint">Przybliżaj i przesuwaj mapę dwoma palcami</string>
+</resources>

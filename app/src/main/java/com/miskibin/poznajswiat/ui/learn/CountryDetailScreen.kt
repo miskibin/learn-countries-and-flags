@@ -1,0 +1,199 @@
+package com.miskibin.poznajswiat.ui.learn
+
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Flag
+import androidx.compose.material.icons.filled.LocationCity
+import androidx.compose.material.icons.filled.Public
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.dp
+import com.miskibin.poznajswiat.R
+import com.miskibin.poznajswiat.data.AppData
+import com.miskibin.poznajswiat.data.Progress
+import com.miskibin.poznajswiat.data.QuizMode
+import com.miskibin.poznajswiat.ui.FlagImage
+import com.miskibin.poznajswiat.ui.MasteryDots
+import com.miskibin.poznajswiat.ui.map.WorldMapView
+import com.miskibin.poznajswiat.ui.quiz.FactCard
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun CountryDetailScreen(
+    data: AppData,
+    progress: Progress,
+    cca2: String,
+    onBack: () -> Unit,
+) {
+    val country = data.byCode[cca2] ?: return
+
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text(country.namePl) },
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(
+                            Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = stringResource(R.string.back),
+                        )
+                    }
+                },
+            )
+        },
+    ) { padding ->
+        Column(
+            Modifier
+                .padding(padding)
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 16.dp),
+        ) {
+            Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                FlagImage(
+                    resId = data.flagRes[country.cca2] ?: 0,
+                    contentDescription = country.namePl,
+                    modifier = Modifier.width(260.dp),
+                    corner = 16.dp,
+                )
+            }
+            Spacer(Modifier.height(16.dp))
+
+            Card {
+                Column(Modifier.padding(4.dp)) {
+                    InfoRow(
+                        Icons.Default.LocationCity,
+                        stringResource(R.string.detail_capital),
+                        country.capitalPl,
+                    )
+                    InfoRow(
+                        Icons.Default.Public,
+                        stringResource(R.string.detail_continent),
+                        country.continent,
+                    )
+                }
+            }
+            Spacer(Modifier.height(12.dp))
+
+            FactCard(fact = country.fact)
+            Spacer(Modifier.height(12.dp))
+
+            Text(
+                stringResource(R.string.detail_location),
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Spacer(Modifier.height(6.dp))
+            val highlight = MaterialTheme.colorScheme.primary
+            Box(
+                Modifier
+                    .fillMaxWidth()
+                    .height(230.dp)
+                    .clip(RoundedCornerShape(16.dp)),
+            ) {
+                WorldMapView(
+                    map = data.worldMap,
+                    countries = data.countries,
+                    interactive = false,
+                    focusOn = country,
+                    fillFor = { code -> if (code == country.cca2) highlight else null },
+                )
+            }
+            Spacer(Modifier.height(12.dp))
+
+            Card(colors = CardDefaults.cardColors()) {
+                Column(Modifier.padding(14.dp)) {
+                    Text(
+                        stringResource(R.string.detail_progress),
+                        style = MaterialTheme.typography.titleMedium,
+                    )
+                    Spacer(Modifier.height(10.dp))
+                    ProgressRow(
+                        Icons.Default.Flag,
+                        stringResource(R.string.mode_flags_title),
+                        progress.streak(QuizMode.FLAGS, country.cca2),
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    ProgressRow(
+                        Icons.Default.Public,
+                        stringResource(R.string.mode_map_title),
+                        progress.streak(QuizMode.MAP, country.cca2),
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    ProgressRow(
+                        Icons.Default.LocationCity,
+                        stringResource(R.string.mode_capitals_title),
+                        progress.streak(QuizMode.CAPITALS, country.cca2),
+                    )
+                }
+            }
+            Spacer(Modifier.height(24.dp))
+        }
+    }
+}
+
+@Composable
+private fun InfoRow(icon: ImageVector, label: String, value: String) {
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 12.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+        Spacer(Modifier.width(12.dp))
+        Text(
+            label,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.weight(1f),
+        )
+        Text(value, style = MaterialTheme.typography.titleMedium)
+    }
+}
+
+@Composable
+private fun ProgressRow(icon: ImageVector, label: String, streak: Int) {
+    Row(
+        Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween,
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(
+                icon,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Spacer(Modifier.width(10.dp))
+            Text(label, style = MaterialTheme.typography.bodyLarge)
+        }
+        MasteryDots(streak = streak)
+    }
+}
