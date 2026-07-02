@@ -3,6 +3,8 @@ package com.miskibin.poznajswiat.ui.learn
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -15,6 +17,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Explore
 import androidx.compose.material.icons.filled.Flag
 import androidx.compose.material.icons.filled.LocationCity
 import androidx.compose.material.icons.filled.Public
@@ -40,18 +43,21 @@ import com.miskibin.poznajswiat.data.Progress
 import com.miskibin.poznajswiat.data.QuizMode
 import com.miskibin.poznajswiat.ui.FlagImage
 import com.miskibin.poznajswiat.ui.MasteryDots
+import com.miskibin.poznajswiat.ui.history.EventCard
 import com.miskibin.poznajswiat.ui.map.WorldMapView
 import com.miskibin.poznajswiat.ui.quiz.FactCard
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun CountryDetailScreen(
     data: AppData,
     progress: Progress,
     cca2: String,
+    onOpenCountry: (String) -> Unit,
     onBack: () -> Unit,
 ) {
     val country = data.byCode[cca2] ?: return
+    val events = data.eventsFor(cca2)
 
     Scaffold(
         topBar = {
@@ -97,6 +103,15 @@ fun CountryDetailScreen(
                         stringResource(R.string.detail_continent),
                         country.continent,
                     )
+                    if (country.subregionPl.isNotEmpty() &&
+                        country.subregionPl != country.continent
+                    ) {
+                        InfoRow(
+                            Icons.Default.Explore,
+                            stringResource(R.string.detail_region),
+                            country.subregionPl,
+                        )
+                    }
                 }
             }
             Spacer(Modifier.height(12.dp))
@@ -126,6 +141,58 @@ fun CountryDetailScreen(
                 )
             }
             Spacer(Modifier.height(12.dp))
+
+            if (country.neighbors.isNotEmpty()) {
+                Text(
+                    stringResource(R.string.detail_neighbors),
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Spacer(Modifier.height(6.dp))
+                FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    country.neighbors.forEach { code ->
+                        val neighbor = data.byCode[code] ?: return@forEach
+                        Card(
+                            onClick = { onOpenCountry(code) },
+                            colors = CardDefaults.cardColors(
+                                containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                            ),
+                        ) {
+                            Row(
+                                Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                FlagImage(
+                                    resId = data.flagRes[code] ?: 0,
+                                    contentDescription = null,
+                                    modifier = Modifier.width(26.dp),
+                                    corner = 4.dp,
+                                )
+                                Spacer(Modifier.width(6.dp))
+                                Text(neighbor.namePl, style = MaterialTheme.typography.labelLarge)
+                            }
+                        }
+                    }
+                }
+                Spacer(Modifier.height(12.dp))
+            }
+
+            if (events.isNotEmpty()) {
+                Text(
+                    stringResource(R.string.detail_history),
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Spacer(Modifier.height(6.dp))
+                events.forEach { event ->
+                    EventCard(event, data, onOpenCountry = null)
+                    Spacer(Modifier.height(8.dp))
+                }
+                Spacer(Modifier.height(4.dp))
+            }
 
             Card(colors = CardDefaults.cardColors()) {
                 Column(Modifier.padding(14.dp)) {

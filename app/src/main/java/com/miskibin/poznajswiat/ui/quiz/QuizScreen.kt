@@ -4,7 +4,9 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -13,6 +15,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
@@ -26,6 +29,9 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Cancel
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.FavoriteBorder
+import androidx.compose.material.icons.filled.HistoryEdu
 import androidx.compose.material.icons.filled.Lightbulb
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -58,6 +64,7 @@ import com.miskibin.poznajswiat.ui.FlagImage
 import com.miskibin.poznajswiat.ui.ScoreRing
 import com.miskibin.poznajswiat.ui.WrongRed
 import com.miskibin.poznajswiat.ui.WrongRedContainer
+import com.miskibin.poznajswiat.ui.map.WorldMapView
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -98,50 +105,64 @@ fun QuizScreen(
         },
     ) { padding ->
         val q = state.current
-        if (state.loading || q == null) {
+        val data = state.data
+        if (state.loading || q == null || data == null) {
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 CircularProgressIndicator()
             }
             return@Scaffold
         }
-        val data = state.data ?: return@Scaffold
 
         Column(
             Modifier
                 .padding(padding)
-                .fillMaxSize()
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 16.dp),
+                .fillMaxSize(),
         ) {
             LinearProgressIndicator(
                 progress = { state.index.toFloat() / state.questions.size },
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp),
             )
-            Spacer(Modifier.height(20.dp))
+            Spacer(Modifier.height(12.dp))
+            if (q.kind == QuizMode.MAP) {
+                MapQuestionContent(viewModel, state, q)
+            } else {
+                OptionsQuestionContent(viewModel, state, q)
+            }
+        }
+    }
+}
 
-            if (viewModel.mode == QuizMode.FLAGS) {
-                Text(
-                    stringResource(R.string.quiz_question_flags),
-                    style = MaterialTheme.typography.titleMedium,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier.fillMaxWidth(),
-                )
+@Composable
+private fun OptionsQuestionContent(
+    viewModel: QuizViewModel,
+    state: QuizUiState,
+    q: Question,
+) {
+    val data = state.data ?: return
+    Column(
+        Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = 16.dp),
+    ) {
+        when (q.kind) {
+            QuizMode.FLAGS -> {
+                QuestionTitle(stringResource(R.string.quiz_question_flags))
                 Spacer(Modifier.height(16.dp))
                 Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
                     FlagImage(
-                        resId = data.flagRes[q.target.cca2] ?: 0,
+                        resId = data.flagRes[q.target!!.cca2] ?: 0,
                         contentDescription = null,
                         modifier = Modifier.width(240.dp),
                         corner = 14.dp,
                     )
                 }
-            } else {
-                Text(
-                    stringResource(R.string.quiz_question_capitals),
-                    style = MaterialTheme.typography.titleMedium,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier.fillMaxWidth(),
-                )
+            }
+
+            QuizMode.CAPITALS -> {
+                QuestionTitle(stringResource(R.string.quiz_question_capitals))
                 Spacer(Modifier.height(16.dp))
                 Row(
                     Modifier.fillMaxWidth(),
@@ -149,7 +170,7 @@ fun QuizScreen(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     FlagImage(
-                        resId = data.flagRes[q.target.cca2] ?: 0,
+                        resId = data.flagRes[q.target!!.cca2] ?: 0,
                         contentDescription = null,
                         modifier = Modifier.width(72.dp),
                         corner = 8.dp,
@@ -159,81 +180,267 @@ fun QuizScreen(
                 }
             }
 
-            Spacer(Modifier.height(24.dp))
-
-            q.options.forEach { option ->
-                val label =
-                    if (viewModel.mode == QuizMode.CAPITALS) option.capitalPl else option.namePl
-                val isTarget = option.cca2 == q.target.cca2
-                val isSelected = state.selected == option.cca2
-                val container by animateColorAsState(
-                    targetValue = when {
-                        state.answered && isTarget -> CorrectGreenContainer
-                        state.answered && isSelected -> WrongRedContainer
-                        else -> MaterialTheme.colorScheme.surfaceVariant
-                    },
-                    animationSpec = tween(300),
-                    label = "optionColor",
-                )
-                val content = when {
-                    state.answered && isTarget -> Color(0xFF0A3D0C)
-                    state.answered && isSelected -> Color(0xFF4E0F0D)
-                    else -> MaterialTheme.colorScheme.onSurfaceVariant
-                }
+            else -> { // HISTORY
+                QuestionTitle(stringResource(R.string.quiz_question_history))
+                Spacer(Modifier.height(16.dp))
                 Card(
-                    colors = CardDefaults.cardColors(containerColor = container),
-                    shape = RoundedCornerShape(14.dp),
-                    onClick = { viewModel.answer(option.cca2) },
-                    enabled = !state.answered,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 5.dp)
-                        .testTag("quiz_option"),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.primaryContainer,
+                    ),
+                    modifier = Modifier.fillMaxWidth(),
                 ) {
                     Row(
-                        Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
+                        Modifier.padding(16.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        Text(
-                            label,
-                            style = MaterialTheme.typography.titleMedium,
-                            color = content,
-                            modifier = Modifier.weight(1f),
+                        Icon(
+                            Icons.Default.HistoryEdu,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onPrimaryContainer,
                         )
-                        if (state.answered && isTarget) {
-                            Icon(Icons.Default.CheckCircle, null, tint = CorrectGreen)
-                        } else if (state.answered && isSelected && !isTarget) {
-                            Icon(Icons.Default.Cancel, null, tint = WrongRed)
-                        }
+                        Spacer(Modifier.width(12.dp))
+                        Text(
+                            q.event!!.title,
+                            style = MaterialTheme.typography.titleLarge,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer,
+                        )
                     }
                 }
             }
+        }
 
+        Spacer(Modifier.height(24.dp))
+
+        val options: List<Pair<String, String>> = when (q.kind) {
+            QuizMode.HISTORY -> q.yearOptions.map {
+                it.toString() to if (it < 0) "${-it} p.n.e." else it.toString()
+            }
+            QuizMode.CAPITALS -> q.options.map { it.cca2 to it.capitalPl }
+            else -> q.options.map { it.cca2 to it.namePl }
+        }
+        options.forEach { (key, label) ->
+            OptionCard(
+                label = label,
+                isTarget = key == q.correctKey,
+                isSelected = state.selected == key,
+                answered = state.answered,
+                onClick = { viewModel.answer(key) },
+            )
+        }
+
+        AnimatedVisibility(
+            visible = state.answered,
+            enter = fadeIn() + slideInVertically { it / 3 },
+        ) {
+            Column {
+                Spacer(Modifier.height(10.dp))
+                FactCard(fact = q.target?.fact ?: q.event?.desc.orEmpty())
+                Spacer(Modifier.height(12.dp))
+                NextButton(viewModel, state)
+            }
+        }
+        Spacer(Modifier.height(24.dp))
+    }
+}
+
+@Composable
+private fun QuestionTitle(text: String) {
+    Text(
+        text,
+        style = MaterialTheme.typography.titleMedium,
+        textAlign = TextAlign.Center,
+        modifier = Modifier.fillMaxWidth(),
+    )
+}
+
+@Composable
+private fun OptionCard(
+    label: String,
+    isTarget: Boolean,
+    isSelected: Boolean,
+    answered: Boolean,
+    onClick: () -> Unit,
+) {
+    val container by animateColorAsState(
+        targetValue = when {
+            answered && isTarget -> CorrectGreenContainer
+            answered && isSelected -> WrongRedContainer
+            else -> MaterialTheme.colorScheme.surfaceVariant
+        },
+        animationSpec = tween(300),
+        label = "optionColor",
+    )
+    val content = when {
+        answered && isTarget -> Color(0xFF0A3D0C)
+        answered && isSelected -> Color(0xFF4E0F0D)
+        else -> MaterialTheme.colorScheme.onSurfaceVariant
+    }
+    Card(
+        colors = CardDefaults.cardColors(containerColor = container),
+        shape = RoundedCornerShape(14.dp),
+        onClick = onClick,
+        enabled = !answered,
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 5.dp)
+            .testTag("quiz_option"),
+    ) {
+        Row(
+            Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                label,
+                style = MaterialTheme.typography.titleMedium,
+                color = content,
+                modifier = Modifier.weight(1f),
+            )
+            if (answered && isTarget) {
+                Icon(Icons.Default.CheckCircle, null, tint = CorrectGreen)
+            } else if (answered && isSelected && !isTarget) {
+                Icon(Icons.Default.Cancel, null, tint = WrongRed)
+            }
+        }
+    }
+}
+
+@Composable
+private fun NextButton(viewModel: QuizViewModel, state: QuizUiState, compact: Boolean = false) {
+    Button(
+        onClick = { viewModel.next() },
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(if (compact) 48.dp else 52.dp),
+    ) {
+        Text(
+            stringResource(
+                if (state.index + 1 >= state.questions.size) R.string.quiz_finish
+                else R.string.quiz_next
+            ),
+            style = MaterialTheme.typography.titleMedium,
+        )
+    }
+}
+
+@Composable
+private fun MapQuestionContent(
+    viewModel: QuizViewModel,
+    state: QuizUiState,
+    q: Question,
+) {
+    val data = state.data ?: return
+    val target = q.target ?: return
+
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(Modifier.weight(1f)) {
+            Text(
+                stringResource(R.string.quiz_question_map),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Text(target.namePl, style = MaterialTheme.typography.headlineSmall)
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+            repeat(3) { i ->
+                Icon(
+                    imageVector = if (i < state.triesLeft) Icons.Default.Favorite
+                    else Icons.Default.FavoriteBorder,
+                    contentDescription = null,
+                    tint = if (i < state.triesLeft) WrongRed
+                    else MaterialTheme.colorScheme.outline,
+                    modifier = Modifier.size(22.dp),
+                )
+            }
+        }
+    }
+    Spacer(Modifier.height(10.dp))
+
+    Box(Modifier.fillMaxSize()) {
+        WorldMapView(
+            map = data.worldMap,
+            countries = data.countries,
+            interactive = true,
+            fillFor = { code ->
+                when {
+                    state.answered && code == target.cca2 -> CorrectGreen
+                    code in state.wrongTaps -> WrongRed.copy(alpha = 0.75f)
+                    else -> null
+                }
+            },
+            onTap = { code -> viewModel.mapTap(code) },
+        )
+
+        Column(
+            Modifier
+                .align(Alignment.BottomCenter)
+                .fillMaxWidth()
+                .padding(12.dp)
+                .navigationBarsPadding(),
+        ) {
             AnimatedVisibility(
-                visible = state.answered,
-                enter = fadeIn() + slideInVertically { it / 3 },
+                visible = !state.answered && state.lastWrongTap != null,
+                enter = fadeIn() + slideInVertically { it / 2 },
+                exit = fadeOut() + slideOutVertically { it / 2 },
             ) {
-                Column {
-                    Spacer(Modifier.height(10.dp))
-                    FactCard(fact = q.target.fact)
-                    Spacer(Modifier.height(12.dp))
-                    Button(
-                        onClick = { viewModel.next() },
+                val wrongName = state.lastWrongTap?.let { data.byCode[it]?.namePl }
+                Card(
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.errorContainer,
+                    ),
+                ) {
+                    Text(
+                        text = if (wrongName != null) {
+                            stringResource(R.string.quiz_map_wrong_tap, wrongName)
+                        } else {
+                            stringResource(R.string.quiz_question_map) + " " + target.namePl
+                        },
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onErrorContainer,
+                        textAlign = TextAlign.Center,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(52.dp),
-                    ) {
-                        Text(
-                            stringResource(
-                                if (state.index + 1 >= state.questions.size) R.string.quiz_finish
-                                else R.string.quiz_next
-                            ),
-                            style = MaterialTheme.typography.titleMedium,
-                        )
+                            .padding(12.dp),
+                    )
+                }
+            }
+            AnimatedVisibility(
+                visible = state.answered,
+                enter = fadeIn() + slideInVertically { it / 2 },
+            ) {
+                Card {
+                    Column(Modifier.padding(12.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            FlagImage(
+                                resId = data.flagRes[target.cca2] ?: 0,
+                                contentDescription = null,
+                                modifier = Modifier.width(56.dp),
+                                corner = 6.dp,
+                            )
+                            Spacer(Modifier.width(10.dp))
+                            Text(
+                                text = if (state.revealed) {
+                                    stringResource(R.string.quiz_map_revealed)
+                                } else {
+                                    stringResource(R.string.quiz_correct)
+                                },
+                                style = MaterialTheme.typography.titleMedium,
+                                color = if (state.revealed) {
+                                    MaterialTheme.colorScheme.onSurfaceVariant
+                                } else CorrectGreen,
+                            )
+                        }
+                        Spacer(Modifier.height(8.dp))
+                        FactCard(fact = target.fact)
+                        Spacer(Modifier.height(8.dp))
+                        NextButton(viewModel, state, compact = true)
                     }
                 }
             }
-            Spacer(Modifier.height(24.dp))
         }
     }
 }
@@ -309,24 +516,39 @@ fun ResultsScreen(
 
         LazyColumn(Modifier.weight(1f)) {
             items(state.results) { result ->
+                val q = result.question
                 Row(
                     Modifier
                         .fillMaxWidth()
                         .padding(vertical = 6.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    FlagImage(
-                        resId = data?.flagRes?.get(result.country.cca2) ?: 0,
-                        contentDescription = null,
-                        modifier = Modifier.width(48.dp),
-                        corner = 6.dp,
-                    )
-                    Spacer(Modifier.width(12.dp))
-                    Text(
-                        result.country.namePl,
-                        style = MaterialTheme.typography.bodyLarge,
-                        modifier = Modifier.weight(1f),
-                    )
+                    if (q.target != null) {
+                        FlagImage(
+                            resId = data?.flagRes?.get(q.target.cca2) ?: 0,
+                            contentDescription = null,
+                            modifier = Modifier.width(48.dp),
+                            corner = 6.dp,
+                        )
+                        Spacer(Modifier.width(12.dp))
+                        Text(
+                            q.target.namePl,
+                            style = MaterialTheme.typography.bodyLarge,
+                            modifier = Modifier.weight(1f),
+                        )
+                    } else {
+                        Text(
+                            q.event!!.yearLabel,
+                            style = MaterialTheme.typography.titleMedium,
+                            color = MaterialTheme.colorScheme.primary,
+                        )
+                        Spacer(Modifier.width(12.dp))
+                        Text(
+                            q.event.title,
+                            style = MaterialTheme.typography.bodyLarge,
+                            modifier = Modifier.weight(1f),
+                        )
+                    }
                     if (result.correct) {
                         Icon(Icons.Default.CheckCircle, null, tint = CorrectGreen)
                     } else {

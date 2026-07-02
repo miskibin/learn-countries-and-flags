@@ -33,10 +33,10 @@ import com.miskibin.poznajswiat.data.AppData
 import com.miskibin.poznajswiat.data.Progress
 import com.miskibin.poznajswiat.data.ProgressRepo
 import com.miskibin.poznajswiat.data.QuizMode
+import com.miskibin.poznajswiat.ui.history.TimelineScreen
 import com.miskibin.poznajswiat.ui.home.HomeScreen
 import com.miskibin.poznajswiat.ui.learn.CountryDetailScreen
 import com.miskibin.poznajswiat.ui.learn.LearnScreen
-import com.miskibin.poznajswiat.ui.map.MapQuizScreen
 import com.miskibin.poznajswiat.ui.quiz.QuizScreen
 import com.miskibin.poznajswiat.ui.quiz.QuizViewModel
 import com.miskibin.poznajswiat.ui.theme.PoznajSwiatTheme
@@ -87,34 +87,38 @@ fun AppNav() {
                 progress = progress,
                 continent = continent,
                 onContinentChange = { continent = it },
-                onStartQuiz = { mode ->
-                    navController.navigate("quiz/${mode.id}?c=${Uri.encode(continent ?: "")}")
+                onStartSession = { session ->
+                    navController.navigate("quiz/$session?c=${Uri.encode(continent ?: "")}")
                 },
                 onOpenLearn = {
                     navController.navigate("learn?c=${Uri.encode(continent ?: "")}")
                 },
+                onOpenTimeline = { navController.navigate("timeline") },
                 modifier = Modifier.safeDrawingPadding(),
             )
         }
         composable(
-            route = "quiz/{mode}?c={c}",
+            route = "quiz/{session}?c={c}",
             arguments = listOf(
-                navArgument("mode") { type = NavType.StringType },
+                navArgument("session") { type = NavType.StringType },
                 navArgument("c") { type = NavType.StringType; defaultValue = "" },
             ),
         ) { entry ->
-            val mode = QuizMode.fromId(entry.arguments?.getString("mode") ?: QuizMode.FLAGS.id)
+            val session = entry.arguments?.getString("session") ?: QuizMode.FLAGS.id
             val cont = entry.arguments?.getString("c")?.takeIf { it.isNotEmpty() }
             val app = context.applicationContext as Application
             val vm: QuizViewModel = viewModel(
-                key = "quiz-${mode.id}-$cont",
-                factory = QuizViewModel.Factory(app, mode, cont),
+                key = "quiz-$session-$cont",
+                factory = QuizViewModel.Factory(app, session, cont),
             )
-            if (mode == QuizMode.MAP) {
-                MapQuizScreen(viewModel = vm, onExit = { navController.popBackStack() })
-            } else {
-                QuizScreen(viewModel = vm, onExit = { navController.popBackStack() })
-            }
+            QuizScreen(viewModel = vm, onExit = { navController.popBackStack() })
+        }
+        composable("timeline") {
+            TimelineScreen(
+                data = data,
+                onOpenCountry = { cca2 -> navController.navigate("country/$cca2") },
+                onBack = { navController.popBackStack() },
+            )
         }
         composable(
             route = "learn?c={c}",
@@ -139,6 +143,7 @@ fun AppNav() {
                 data = data,
                 progress = progress,
                 cca2 = entry.arguments?.getString("cca2") ?: "",
+                onOpenCountry = { cca2 -> navController.navigate("country/$cca2") },
                 onBack = { navController.popBackStack() },
             )
         }

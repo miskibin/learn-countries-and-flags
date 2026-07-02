@@ -53,6 +53,7 @@ class AppSmokeTest {
         // Home
         awaitText("Poznaj Świat")
         awaitText("Stolice")
+        awaitText("Powtórka dnia")
         screenshot("01_home")
 
         // Flag quiz: answer the first question and advance to the second.
@@ -79,7 +80,34 @@ class AppSmokeTest {
         rule.activityRule.scenario.onActivity { it.onBackPressedDispatcher.onBackPressed() }
         awaitText("Stolice")
 
-        // Learn + search + detail
+        // History quiz: answer one year question
+        rule.onNodeWithText("Dopasuj daty do wydarzeń z dziejów świata").performClick()
+        awaitText("W którym roku miało miejsce to wydarzenie?")
+        rule.waitUntil(15_000) {
+            rule.onAllNodesWithTag("quiz_option").fetchSemanticsNodes().size == 4
+        }
+        screenshot("08_history_quiz")
+        rule.onAllNodesWithTag("quiz_option")[0].performClick()
+        awaitText("Dalej")
+        screenshot("09_history_quiz_answered")
+        rule.activityRule.scenario.onActivity { it.onBackPressedDispatcher.onBackPressed() }
+        awaitText("Stolice")
+
+        // Review session (mixed; seeded by the answers given above)
+        rule.onNodeWithText("Start").performClick()
+        awaitText("Pytanie 1 z")
+        screenshot("10_review")
+        rule.activityRule.scenario.onActivity { it.onBackPressedDispatcher.onBackPressed() }
+        awaitText("Stolice")
+
+        // Timeline
+        rule.onNodeWithText("Najważniejsze wydarzenia w historii świata").performClick()
+        awaitText("Starożytność")
+        screenshot("11_timeline")
+        rule.activityRule.scenario.onActivity { it.onBackPressedDispatcher.onBackPressed() }
+        awaitText("Stolice")
+
+        // Learn + search + detail (with neighbors and history sections)
         rule.onNodeWithText("Poznaj wszystkie kraje, flagi i ciekawostki").performClick()
         awaitText("Szukaj kraju lub stolicy")
         screenshot("05_learn")
@@ -88,7 +116,8 @@ class AppSmokeTest {
         screenshot("06_learn_search")
         rule.onNodeWithText("Warszawa").performClick()
         awaitText("Twoje postępy")
-        awaitText("Stolica")
+        awaitText("Sąsiedzi")
+        awaitText("Wydarzenia historyczne")
         screenshot("07_detail")
     }
 }

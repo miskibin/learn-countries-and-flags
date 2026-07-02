@@ -14,10 +14,16 @@ class AppData(
     val byCode: Map<String, Country>,
     val flagRes: Map<String, Int>,
     val worldMap: WorldMap,
+    val events: List<HistoryEvent>,
 ) {
+    val eventsById: Map<Int, HistoryEvent> = events.associateBy { it.id }
+
     fun forContinent(continent: String?): List<Country> =
         if (continent.isNullOrEmpty()) countries
         else countries.filter { it.continent == continent }
+
+    fun eventsFor(cca2: String): List<HistoryEvent> =
+        events.filter { cca2 in it.countries }
 
     companion object {
         @Volatile
@@ -41,6 +47,9 @@ class AppData(
             val map = WorldMap.parse(
                 context.assets.open("world_map.json").bufferedReader().readText()
             )
+            val events: List<HistoryEvent> = json.decodeFromString<List<HistoryEvent>>(
+                context.assets.open("events.json").bufferedReader().readText()
+            ).sortedBy { it.year }.mapIndexed { i, e -> e.copy(id = i) }
             val flagRes = countries.associate { c ->
                 c.cca2 to context.resources.getIdentifier(
                     "flag_${c.cca2.lowercase()}", "drawable", context.packageName
@@ -51,6 +60,7 @@ class AppData(
                 byCode = countries.associateBy { it.cca2 },
                 flagRes = flagRes,
                 worldMap = map,
+                events = events,
             )
         }
     }

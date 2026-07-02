@@ -13,14 +13,30 @@
     <string name="mode_capitals_desc">Dopasuj stolicę do kraju</string>
     <string name="mode_learn_title">Przeglądaj kraje</string>
     <string name="mode_learn_desc">Poznaj wszystkie kraje, flagi i ciekawostki</string>
+    <string name="mode_history_title">Historia</string>
+    <string name="mode_history_desc">Dopasuj daty do wydarzeń z dziejów świata</string>
+    <string name="timeline_title">Oś czasu</string>
+    <string name="timeline_desc">Najważniejsze wydarzenia w historii świata</string>
+
+    <string name="review_title">Powtórka dnia</string>
+    <plurals name="review_due">
+        <item quantity="one">%d pytanie czeka na powtórkę</item>
+        <item quantity="few">%d pytania czekają na powtórkę</item>
+        <item quantity="many">%d pytań czeka na powtórkę</item>
+        <item quantity="other">%d pytania czeka na powtórkę</item>
+    </plurals>
+    <string name="review_none_due">Brak zaległych powtórek — poznaj coś nowego!</string>
+    <string name="review_start">Start</string>
 
     <string name="stats_mastered">Opanowane</string>
     <string name="stats_answers">Odpowiedzi</string>
     <string name="stats_accuracy">Skuteczność</string>
+    <string name="stats_day_streak">Seria dni</string>
 
     <string name="quiz_question_flags">Do którego kraju należy ta flaga?</string>
     <string name="quiz_question_capitals">Jakie miasto jest stolicą tego kraju?</string>
     <string name="quiz_question_map">Wskaż na mapie:</string>
+    <string name="quiz_question_history">W którym roku miało miejsce to wydarzenie?</string>
     <string name="quiz_progress">Pytanie %1$d z %2$d</string>
     <string name="quiz_correct">Dobrze!</string>
     <string name="quiz_wrong">Niestety, to %1$s</string>
@@ -44,6 +60,9 @@
 
     <string name="detail_capital">Stolica</string>
     <string name="detail_continent">Kontynent</string>
+    <string name="detail_region">Region</string>
+    <string name="detail_neighbors">Sąsiedzi</string>
+    <string name="detail_history">Wydarzenia historyczne</string>
     <string name="detail_fact">Ciekawostka</string>
     <string name="detail_location">Położenie</string>
     <string name="detail_progress">Twoje postępy</string>

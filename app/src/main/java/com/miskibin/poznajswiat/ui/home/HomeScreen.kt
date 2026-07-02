@@ -21,8 +21,14 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.MenuBook
 import androidx.compose.material.icons.filled.Flag
+import androidx.compose.material.icons.filled.HistoryEdu
+import androidx.compose.material.icons.filled.LocalFireDepartment
 import androidx.compose.material.icons.filled.LocationCity
 import androidx.compose.material.icons.filled.Public
+import androidx.compose.material.icons.filled.Replay
+import androidx.compose.material.icons.filled.Timeline
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FilterChip
@@ -30,10 +36,13 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.miskibin.poznajswiat.R
@@ -43,6 +52,7 @@ import com.miskibin.poznajswiat.data.Progress
 import com.miskibin.poznajswiat.data.QuizMode
 import com.miskibin.poznajswiat.ui.ScoreRing
 import com.miskibin.poznajswiat.ui.StatColumn
+import java.time.LocalDate
 
 @Composable
 fun HomeScreen(
@@ -50,8 +60,9 @@ fun HomeScreen(
     progress: Progress,
     continent: String?,
     onContinentChange: (String?) -> Unit,
-    onStartQuiz: (QuizMode) -> Unit,
+    onStartSession: (String) -> Unit,
     onOpenLearn: () -> Unit,
+    onOpenTimeline: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -71,6 +82,9 @@ fun HomeScreen(
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         Spacer(Modifier.height(16.dp))
+
+        ReviewCard(progress, onStart = { onStartSession("powtorka") })
+        Spacer(Modifier.height(12.dp))
 
         StatsCard(data, progress)
         Spacer(Modifier.height(16.dp))
@@ -99,7 +113,7 @@ fun HomeScreen(
             description = stringResource(R.string.mode_flags_desc),
             container = MaterialTheme.colorScheme.primaryContainer,
             onContainer = MaterialTheme.colorScheme.onPrimaryContainer,
-            onClick = { onStartQuiz(QuizMode.FLAGS) },
+            onClick = { onStartSession(QuizMode.FLAGS.id) },
         )
         Spacer(Modifier.height(12.dp))
         ModeCard(
@@ -108,7 +122,7 @@ fun HomeScreen(
             description = stringResource(R.string.mode_map_desc),
             container = MaterialTheme.colorScheme.secondaryContainer,
             onContainer = MaterialTheme.colorScheme.onSecondaryContainer,
-            onClick = { onStartQuiz(QuizMode.MAP) },
+            onClick = { onStartSession(QuizMode.MAP.id) },
         )
         Spacer(Modifier.height(12.dp))
         ModeCard(
@@ -117,7 +131,25 @@ fun HomeScreen(
             description = stringResource(R.string.mode_capitals_desc),
             container = MaterialTheme.colorScheme.tertiaryContainer,
             onContainer = MaterialTheme.colorScheme.onTertiaryContainer,
-            onClick = { onStartQuiz(QuizMode.CAPITALS) },
+            onClick = { onStartSession(QuizMode.CAPITALS.id) },
+        )
+        Spacer(Modifier.height(12.dp))
+        ModeCard(
+            icon = Icons.Default.HistoryEdu,
+            title = stringResource(R.string.mode_history_title),
+            description = stringResource(R.string.mode_history_desc),
+            container = MaterialTheme.colorScheme.primaryContainer,
+            onContainer = MaterialTheme.colorScheme.onPrimaryContainer,
+            onClick = { onStartSession(QuizMode.HISTORY.id) },
+        )
+        Spacer(Modifier.height(12.dp))
+        ModeCard(
+            icon = Icons.Default.Timeline,
+            title = stringResource(R.string.timeline_title),
+            description = stringResource(R.string.timeline_desc),
+            container = MaterialTheme.colorScheme.secondaryContainer,
+            onContainer = MaterialTheme.colorScheme.onSecondaryContainer,
+            onClick = onOpenTimeline,
         )
         Spacer(Modifier.height(12.dp))
         ModeCard(
@@ -133,11 +165,69 @@ fun HomeScreen(
 }
 
 @Composable
+private fun ReviewCard(progress: Progress, onStart: () -> Unit) {
+    val today = remember { LocalDate.now().toEpochDay() }
+    val dueCount = remember(progress) { progress.dueItems(today).size }
+
+    Card(
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.primary,
+        ),
+    ) {
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(
+                Icons.Default.Replay,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onPrimary,
+                modifier = Modifier.size(32.dp),
+            )
+            Spacer(Modifier.width(14.dp))
+            Column(Modifier.weight(1f)) {
+                Text(
+                    stringResource(R.string.review_title),
+                    style = MaterialTheme.typography.titleLarge,
+                    color = MaterialTheme.colorScheme.onPrimary,
+                )
+                Text(
+                    text = if (dueCount > 0) {
+                        pluralStringResource(R.plurals.review_due, dueCount, dueCount)
+                    } else {
+                        stringResource(R.string.review_none_due)
+                    },
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.85f),
+                )
+            }
+            Spacer(Modifier.width(10.dp))
+            Button(
+                onClick = onStart,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.onPrimary,
+                    contentColor = MaterialTheme.colorScheme.primary,
+                ),
+            ) {
+                Text(stringResource(R.string.review_start))
+            }
+        }
+    }
+}
+
+@Composable
 private fun StatsCard(data: AppData, progress: Progress) {
-    val totalSlots = data.countries.size * QuizMode.entries.size
-    val mastered = QuizMode.entries.sumOf { progress.masteredCount(it, data.countries) }
+    val totalSlots = data.countries.size * 3 + data.events.size
+    val mastered =
+        listOf(QuizMode.FLAGS, QuizMode.MAP, QuizMode.CAPITALS).sumOf { mode ->
+            progress.masteredCount(mode, data.countries.map { it.cca2 })
+        } + progress.masteredCount(QuizMode.HISTORY, data.events.map { it.id.toString() })
     val attempts = progress.totalAttempts
     val accuracy = if (attempts == 0) 0 else (100 * progress.totalCorrect / attempts)
+    val today = remember { LocalDate.now().toEpochDay() }
+    val dayStreak = progress.currentDayStreak(today)
 
     Card(colors = CardDefaults.cardColors()) {
         Row(
@@ -155,14 +245,30 @@ private fun StatsCard(data: AppData, progress: Progress) {
                     style = MaterialTheme.typography.titleLarge,
                 )
             }
-            Spacer(Modifier.width(20.dp))
+            Spacer(Modifier.width(16.dp))
             Row(
                 Modifier.weight(1f),
                 horizontalArrangement = Arrangement.SpaceEvenly,
             ) {
                 StatColumn("$mastered", stringResource(R.string.stats_mastered))
-                StatColumn("$attempts", stringResource(R.string.stats_answers))
                 StatColumn("$accuracy%", stringResource(R.string.stats_accuracy))
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            Icons.Default.LocalFireDepartment,
+                            contentDescription = null,
+                            tint = if (dayStreak > 0) Color(0xFFE65100)
+                            else MaterialTheme.colorScheme.outline,
+                            modifier = Modifier.size(22.dp),
+                        )
+                        Text("$dayStreak", style = MaterialTheme.typography.titleLarge)
+                    }
+                    Text(
+                        stringResource(R.string.stats_day_streak),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
             }
         }
     }
@@ -173,8 +279,8 @@ private fun ModeCard(
     icon: ImageVector,
     title: String,
     description: String,
-    container: androidx.compose.ui.graphics.Color,
-    onContainer: androidx.compose.ui.graphics.Color,
+    container: Color,
+    onContainer: Color,
     onClick: () -> Unit,
 ) {
     Card(
