@@ -7,6 +7,9 @@ import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.float
 import kotlinx.serialization.json.jsonPrimitive
+import kotlin.math.PI
+import kotlin.math.ln
+import kotlin.math.tan
 
 class CountryShape(val rings: List<FloatArray>) {
     val bounds: Rect = run {
@@ -56,10 +59,14 @@ class WorldMap(
     val shapes: Map<String, CountryShape>,
     val background: List<FloatArray>,
 ) {
-    /** Projection used when preprocessing the GeoJSON — must stay in sync with the asset. */
+    /**
+     * Web Mercator, truncated to 84°N..60°S — must stay in sync with the
+     * projection used when preprocessing the GeoJSON asset.
+     */
     fun project(lat: Double, lng: Double): Offset {
+        val clamped = lat.coerceIn(LAT_BOT, LAT_TOP)
         val x = (lng + 180.0) / 360.0 * width
-        val y = (LAT_TOP - lat) / (LAT_TOP - LAT_BOT) * height
+        val y = (Y_TOP - mercY(clamped)) / (Y_TOP - Y_BOT) * height
         return Offset(x.toFloat(), y.toFloat())
     }
 
@@ -71,8 +78,14 @@ class WorldMap(
     }
 
     companion object {
-        private const val LAT_TOP = 85.0
+        private const val LAT_TOP = 84.0
         private const val LAT_BOT = -60.0
+
+        private fun mercY(lat: Double): Double =
+            ln(tan(PI / 4.0 + Math.toRadians(lat) / 2.0))
+
+        private val Y_TOP = mercY(LAT_TOP)
+        private val Y_BOT = mercY(LAT_BOT)
 
         fun parse(text: String): WorldMap {
             val root = Json.parseToJsonElement(text).jsonObject
