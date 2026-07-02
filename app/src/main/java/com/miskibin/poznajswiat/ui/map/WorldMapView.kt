@@ -93,10 +93,18 @@ fun WorldMapView(
         markerCountries.filter { !it.hasPoly }.map { it to map.project(it.lat, it.lng) }
     }
 
-    var zoom by remember(resetKey) { mutableFloatStateOf(1f) }
+    // The state OBJECTS must stay stable across resets: the running gesture
+    // coroutines capture them, so recreating them (remember(resetKey)) would
+    // leave gestures writing into orphaned state. Reset the values instead.
+    var zoom by remember { mutableFloatStateOf(1f) }
     // null = camera untouched -> keep the map centered.
-    var panState by remember(resetKey) { mutableStateOf<Offset?>(null) }
+    var panState by remember { mutableStateOf<Offset?>(null) }
     var viewSize by remember { mutableStateOf(IntSize.Zero) }
+
+    LaunchedEffect(resetKey) {
+        zoom = 1f
+        panState = null
+    }
 
     fun baseScale(size: IntSize): Float =
         if (size == IntSize.Zero) 1f
