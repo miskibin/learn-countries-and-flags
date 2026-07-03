@@ -155,6 +155,8 @@ fun QuizScreen(
             )
             Spacer(Modifier.height(12.dp))
             // Fresh slide-in for every question keeps the session lively.
+            // AnimatedVisibility lays its content out like a Box, so the
+            // question sections must be re-wrapped in a Column here.
             key(state.index) {
                 val entrance = remember {
                     MutableTransitionState(false).apply { targetState = true }
@@ -162,11 +164,14 @@ fun QuizScreen(
                 AnimatedVisibility(
                     visibleState = entrance,
                     enter = slideInHorizontally { it / 4 } + fadeIn(),
+                    modifier = Modifier.fillMaxSize(),
                 ) {
-                    if (q.kind == QuizMode.MAP) {
-                        MapQuestionContent(viewModel, state, q)
-                    } else {
-                        OptionsQuestionContent(viewModel, state, q)
+                    Column(Modifier.fillMaxSize()) {
+                        if (q.kind == QuizMode.MAP) {
+                            MapQuestionContent(viewModel, state, q)
+                        } else {
+                            OptionsQuestionContent(viewModel, state, q)
+                        }
                     }
                 }
             }
