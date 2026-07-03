@@ -28,8 +28,13 @@
     <string name="review_none_due">Brak zaległych powtórek — poznaj coś nowego!</string>
     <string name="review_start">Start</string>
 
-    <string name="path_title">Ścieżka nauki</string>
-    <string name="path_learn">Ucz się: %1$s</string>
+    <string name="home_continue">Kontynuuj naukę</string>
+    <string name="home_practice">Ćwicz</string>
+    <string name="home_explore">Odkrywaj</string>
+    <string name="hero_review_button">Powtarzaj</string>
+    <string name="hero_path_button">Ucz się</string>
+    <string name="hero_path_desc">Następny cel: %1$s</string>
+    <string name="stats_mastered_short">%1$d / %2$d opanowane</string>
 
     <string name="knowledge_title">Mapa wiedzy</string>
     <string name="knowledge_desc">Zobacz na mapie, ile już umiesz</string>

@@ -5,6 +5,7 @@ import android.graphics.Canvas
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
@@ -54,12 +55,11 @@ class AppSmokeTest {
         // Home
         awaitText("Poznaj Świat")
         awaitText("Stolice")
-        awaitText("Powtórka dnia")
-        awaitText("Ścieżka nauki")
+        awaitText("Kontynuuj naukę")
         screenshot("01_home")
 
         // Flag quiz: answer the first question and advance to the second.
-        rule.onNodeWithText("Zgadnij, do którego kraju należy flaga").performClick()
+        rule.onNodeWithText("Flagi").performClick()
         awaitText("Pytanie 1 z")
         rule.waitUntil(15_000) {
             rule.onAllNodesWithTag("quiz_option").fetchSemanticsNodes().size == 4
@@ -76,7 +76,7 @@ class AppSmokeTest {
         awaitText("Stolice")
 
         // Map quiz: use the "I don't know" reveal
-        rule.onNodeWithText("Wskaż kraj na mapie świata").performClick()
+        rule.onNodeWithText("Mapa").performClick()
         awaitText("Wskaż na mapie")
         screenshot("04_map_quiz")
         rule.onNodeWithText("Nie wiem — pokaż").performClick()
@@ -86,7 +86,7 @@ class AppSmokeTest {
         awaitText("Stolice")
 
         // Knowledge map
-        rule.onNodeWithText("Zobacz na mapie, ile już umiesz").performScrollTo().performClick()
+        rule.onNodeWithText("Mapa wiedzy").performScrollTo().performClick()
         awaitText("W trakcie")
         screenshot("12_knowledge")
         rule.activityRule.scenario.onActivity { it.onBackPressedDispatcher.onBackPressed() }
@@ -94,8 +94,7 @@ class AppSmokeTest {
 
         // History quiz: the question form is random (year / order / country),
         // so assert on the shared structure only.
-        rule.onNodeWithText("Dopasuj daty do wydarzeń z dziejów świata")
-            .performScrollTo().performClick()
+        rule.onNodeWithText("Historia").performScrollTo().performClick()
         awaitText("Pytanie 1 z")
         rule.waitUntil(15_000) {
             rule.onAllNodesWithTag("quiz_option").fetchSemanticsNodes().size >= 2
@@ -107,24 +106,23 @@ class AppSmokeTest {
         rule.activityRule.scenario.onActivity { it.onBackPressedDispatcher.onBackPressed() }
         awaitText("Stolice")
 
-        // Review session (mixed; seeded by the answers given above)
-        rule.onNodeWithText("Start").performScrollTo().performClick()
+        // Review session (mixed; seeded by the answers given above — the map
+        // reveal counted as a mistake, so the hero shows "Powtarzaj")
+        rule.onNodeWithTag("hero_action").performScrollTo().performClick()
         awaitText("Pytanie 1 z")
         screenshot("10_review")
         rule.activityRule.scenario.onActivity { it.onBackPressedDispatcher.onBackPressed() }
         awaitText("Stolice")
 
         // Timeline
-        rule.onNodeWithText("Najważniejsze wydarzenia w historii świata")
-            .performScrollTo().performClick()
+        rule.onNodeWithText("Oś czasu").performScrollTo().performClick()
         awaitText("Starożytność")
         screenshot("11_timeline")
         rule.activityRule.scenario.onActivity { it.onBackPressedDispatcher.onBackPressed() }
         awaitText("Stolice")
 
         // Learn + search + detail (with neighbors and history sections)
-        rule.onNodeWithText("Poznaj wszystkie kraje, flagi i ciekawostki")
-            .performScrollTo().performClick()
+        rule.onNodeWithText("Przeglądaj kraje").performScrollTo().performClick()
         awaitText("Szukaj kraju lub stolicy")
         screenshot("05_learn")
         rule.onNodeWithText("Szukaj kraju lub stolicy…").performTextInput("Polska")

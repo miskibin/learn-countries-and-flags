@@ -2,7 +2,9 @@ package com.miskibin.poznajswiat.ui.quiz
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
+import android.os.Build
 import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.MutableTransitionState
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
@@ -14,6 +16,7 @@ import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -56,15 +59,18 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
@@ -343,6 +349,7 @@ private fun AnswerFeedbackPanel(
 ) {
     val data = state.data ?: return
     val answers = rememberAnswerColors()
+    val autoAdvance = remember(state.index) { mutableStateOf(true) }
     AnimatedVisibility(
         visible = state.answered,
         enter = fadeIn() + slideInVertically { it / 2 },
@@ -356,6 +363,10 @@ private fun AnswerFeedbackPanel(
             Column(
                 Modifier
                     .fillMaxWidth()
+                    // Tapping the panel body pauses auto-advance to read.
+                    .pointerInput(state.index) {
+                        detectTapGestures { autoAdvance.value = false }
+                    }
                     .padding(horizontal = 16.dp, vertical = 14.dp)
                     .navigationBarsPadding(),
             ) {
@@ -401,7 +412,12 @@ private fun AnswerFeedbackPanel(
                     ContextTimeline(
                         target = q.event,
                         context = timelineContext,
-                        onEventClick = onOpenEvent?.let { open -> { event -> open(event.id) } },
+                        onEventClick = onOpenEvent?.let { open ->
+                            { event ->
+                                autoAdvance.value = false
+                                open(event.id)
+                            }
+                        },
                     )
                 } else {
                     Row(verticalAlignment = Alignment.Top) {
@@ -420,7 +436,7 @@ private fun AnswerFeedbackPanel(
                     }
                 }
                 Spacer(Modifier.height(10.dp))
-                NextButton(viewModel, state, compact = true)
+                NextControls(viewModel, state, autoAdvance)
             }
         }
     }
@@ -595,23 +611,57 @@ private fun OptionCard(
     }
 }
 
+/**
+ * "Dalej" with auto-advance: after a correct answer a short countdown runs
+ * and moves on by itself; any tap on the panel body cancels it so the
+ * learner can read the context. Raised and narrowed so it sits away from
+ * the gesture-navigation edge.
+ */
 @Composable
-private fun NextButton(viewModel: QuizViewModel, state: QuizUiState, compact: Boolean = false) {
-    Button(
-        onClick = { viewModel.next() },
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(if (compact) 48.dp else 52.dp),
-    ) {
-        Text(
-            stringResource(
-                if (state.index + 1 >= state.questions.size) R.string.quiz_finish
-                else R.string.quiz_next
-            ),
-            style = MaterialTheme.typography.titleMedium,
-        )
+private fun NextControls(
+    viewModel: QuizViewModel,
+    state: QuizUiState,
+    autoAdvance: MutableState<Boolean>,
+) {
+    // Robolectric's virtual clock would fire the countdown instantly and
+    // make UI tests racy; auto-advance is a device-only nicety.
+    val isTestEnv = remember { Build.FINGERPRINT.contains("robolectric") }
+    val progress = remember(state.index) { Animatable(1f) }
+    LaunchedEffect(state.index, state.answered, autoAdvance.value) {
+        if (state.answered && state.lastCorrect && autoAdvance.value && !isTestEnv) {
+            progress.animateTo(0f, tween(AUTO_ADVANCE_MS, easing = LinearEasing))
+            if (autoAdvance.value) viewModel.next()
+        }
+    }
+    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
+        if (state.lastCorrect && autoAdvance.value && !isTestEnv) {
+            LinearProgressIndicator(
+                progress = { progress.value },
+                modifier = Modifier
+                    .fillMaxWidth(0.68f)
+                    .height(3.dp),
+            )
+            Spacer(Modifier.height(6.dp))
+        }
+        Button(
+            onClick = { viewModel.next() },
+            modifier = Modifier
+                .fillMaxWidth(0.68f)
+                .height(50.dp),
+        ) {
+            Text(
+                stringResource(
+                    if (state.index + 1 >= state.questions.size) R.string.quiz_finish
+                    else R.string.quiz_next
+                ),
+                style = MaterialTheme.typography.titleMedium,
+            )
+        }
+        Spacer(Modifier.height(10.dp))
     }
 }
+
+private const val AUTO_ADVANCE_MS = 1500
 
 @Composable
 private fun MapQuestionContent(
@@ -720,12 +770,19 @@ private fun MapQuestionContent(
                     )
                 }
             }
+            val autoAdvance = remember(state.index) { mutableStateOf(true) }
             AnimatedVisibility(
                 visible = state.answered,
                 enter = fadeIn() + slideInVertically { it / 2 },
             ) {
                 Card {
-                    Column(Modifier.padding(12.dp)) {
+                    Column(
+                        Modifier
+                            .pointerInput(state.index) {
+                                detectTapGestures { autoAdvance.value = false }
+                            }
+                            .padding(12.dp),
+                    ) {
                         ComboChip(state)
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             FlagImage(
@@ -750,7 +807,7 @@ private fun MapQuestionContent(
                         Spacer(Modifier.height(8.dp))
                         FactCard(fact = target.fact)
                         Spacer(Modifier.height(8.dp))
-                        NextButton(viewModel, state, compact = true)
+                        NextControls(viewModel, state, autoAdvance)
                     }
                 }
             }

@@ -19,15 +19,14 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.filled.MenuBook
-import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.material.icons.filled.Flag
 import androidx.compose.material.icons.filled.HistoryEdu
 import androidx.compose.material.icons.filled.LocalFireDepartment
 import androidx.compose.material.icons.filled.LocationCity
 import androidx.compose.material.icons.filled.Map
 import androidx.compose.material.icons.filled.Public
-import androidx.compose.material.icons.filled.Replay
 import androidx.compose.material.icons.filled.Timeline
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -45,8 +44,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.miskibin.poznajswiat.R
 import com.miskibin.poznajswiat.data.AppData
@@ -54,12 +55,18 @@ import com.miskibin.poznajswiat.data.CONTINENTS
 import com.miskibin.poznajswiat.data.PATH_ORDER
 import com.miskibin.poznajswiat.data.Progress
 import com.miskibin.poznajswiat.data.QuizMode
+import com.miskibin.poznajswiat.data.SESSION_MIX
+import com.miskibin.poznajswiat.data.SESSION_REVIEW
 import com.miskibin.poznajswiat.ui.ScoreRing
-import com.miskibin.poznajswiat.ui.StatColumn
 import com.miskibin.poznajswiat.ui.map.continentMastery
 import com.miskibin.poznajswiat.ui.map.modesFor
 import java.time.LocalDate
 
+/**
+ * Home: one obvious primary action (the hero card), a slim stats strip,
+ * a 2x2 practice grid and a short "explore" list — visual hierarchy over
+ * a wall of same-looking cards.
+ */
 @Composable
 fun HomeScreen(
     data: AppData,
@@ -83,22 +90,20 @@ fun HomeScreen(
             stringResource(R.string.app_name),
             style = MaterialTheme.typography.headlineMedium,
         )
+        Spacer(Modifier.height(14.dp))
+
+        HeroCard(data, progress, onContinentChange, onStartSession)
+        Spacer(Modifier.height(10.dp))
+
+        StatsStrip(data, progress)
+        Spacer(Modifier.height(18.dp))
+
         Text(
-            stringResource(R.string.home_subtitle),
-            style = MaterialTheme.typography.bodyLarge,
+            stringResource(R.string.home_practice),
+            style = MaterialTheme.typography.titleMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
-        Spacer(Modifier.height(16.dp))
-
-        ReviewCard(progress, onStart = { onStartSession("powtorka") })
-        Spacer(Modifier.height(12.dp))
-
-        LearningPathCard(data, progress, onStartSession, onContinentChange)
-        Spacer(Modifier.height(12.dp))
-
-        StatsCard(data, progress)
-        Spacer(Modifier.height(16.dp))
-
+        Spacer(Modifier.height(8.dp))
         LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             item {
                 FilterChip(
@@ -115,318 +120,267 @@ fun HomeScreen(
                 )
             }
         }
-        Spacer(Modifier.height(12.dp))
+        Spacer(Modifier.height(10.dp))
 
-        ModeCard(
-            icon = Icons.Default.Flag,
-            title = stringResource(R.string.mode_flags_title),
-            description = stringResource(R.string.mode_flags_desc),
-            container = MaterialTheme.colorScheme.primaryContainer,
-            onContainer = MaterialTheme.colorScheme.onPrimaryContainer,
-            onClick = { onStartSession(QuizMode.FLAGS.id) },
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            PracticeTile(
+                Icons.Default.Flag,
+                stringResource(R.string.mode_flags_title),
+                MaterialTheme.colorScheme.primaryContainer,
+                MaterialTheme.colorScheme.onPrimaryContainer,
+                Modifier.weight(1f),
+            ) { onStartSession(QuizMode.FLAGS.id) }
+            PracticeTile(
+                Icons.Default.Public,
+                stringResource(R.string.mode_map_title),
+                MaterialTheme.colorScheme.secondaryContainer,
+                MaterialTheme.colorScheme.onSecondaryContainer,
+                Modifier.weight(1f),
+            ) { onStartSession(QuizMode.MAP.id) }
+        }
+        Spacer(Modifier.height(10.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            PracticeTile(
+                Icons.Default.LocationCity,
+                stringResource(R.string.mode_capitals_title),
+                MaterialTheme.colorScheme.tertiaryContainer,
+                MaterialTheme.colorScheme.onTertiaryContainer,
+                Modifier.weight(1f),
+            ) { onStartSession(QuizMode.CAPITALS.id) }
+            PracticeTile(
+                Icons.Default.HistoryEdu,
+                stringResource(R.string.mode_history_title),
+                MaterialTheme.colorScheme.primaryContainer,
+                MaterialTheme.colorScheme.onPrimaryContainer,
+                Modifier.weight(1f),
+            ) { onStartSession(QuizMode.HISTORY.id) }
+        }
+        Spacer(Modifier.height(18.dp))
+
+        Text(
+            stringResource(R.string.home_explore),
+            style = MaterialTheme.typography.titleMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
-        Spacer(Modifier.height(12.dp))
-        ModeCard(
-            icon = Icons.Default.Public,
-            title = stringResource(R.string.mode_map_title),
-            description = stringResource(R.string.mode_map_desc),
-            container = MaterialTheme.colorScheme.secondaryContainer,
-            onContainer = MaterialTheme.colorScheme.onSecondaryContainer,
-            onClick = { onStartSession(QuizMode.MAP.id) },
-        )
-        Spacer(Modifier.height(12.dp))
-        ModeCard(
-            icon = Icons.Default.LocationCity,
-            title = stringResource(R.string.mode_capitals_title),
-            description = stringResource(R.string.mode_capitals_desc),
-            container = MaterialTheme.colorScheme.tertiaryContainer,
-            onContainer = MaterialTheme.colorScheme.onTertiaryContainer,
-            onClick = { onStartSession(QuizMode.CAPITALS.id) },
-        )
-        Spacer(Modifier.height(12.dp))
-        ModeCard(
-            icon = Icons.Default.HistoryEdu,
-            title = stringResource(R.string.mode_history_title),
-            description = stringResource(R.string.mode_history_desc),
-            container = MaterialTheme.colorScheme.primaryContainer,
-            onContainer = MaterialTheme.colorScheme.onPrimaryContainer,
-            onClick = { onStartSession(QuizMode.HISTORY.id) },
-        )
-        Spacer(Modifier.height(12.dp))
-        ModeCard(
-            icon = Icons.Default.Timeline,
-            title = stringResource(R.string.timeline_title),
-            description = stringResource(R.string.timeline_desc),
-            container = MaterialTheme.colorScheme.secondaryContainer,
-            onContainer = MaterialTheme.colorScheme.onSecondaryContainer,
-            onClick = onOpenTimeline,
-        )
-        Spacer(Modifier.height(12.dp))
-        ModeCard(
-            icon = Icons.Default.Map,
-            title = stringResource(R.string.knowledge_title),
-            description = stringResource(R.string.knowledge_desc),
-            container = MaterialTheme.colorScheme.tertiaryContainer,
-            onContainer = MaterialTheme.colorScheme.onTertiaryContainer,
-            onClick = onOpenKnowledge,
-        )
-        Spacer(Modifier.height(12.dp))
-        ModeCard(
-            icon = Icons.AutoMirrored.Filled.MenuBook,
-            title = stringResource(R.string.mode_learn_title),
-            description = stringResource(R.string.mode_learn_desc),
-            container = MaterialTheme.colorScheme.surfaceVariant,
-            onContainer = MaterialTheme.colorScheme.onSurfaceVariant,
-            onClick = onOpenLearn,
+        Spacer(Modifier.height(8.dp))
+        ExploreRow(Icons.Default.Timeline, stringResource(R.string.timeline_title), onOpenTimeline)
+        ExploreRow(Icons.Default.Map, stringResource(R.string.knowledge_title), onOpenKnowledge)
+        ExploreRow(
+            Icons.AutoMirrored.Filled.MenuBook,
+            stringResource(R.string.mode_learn_title),
+            onOpenLearn,
         )
         Spacer(Modifier.height(24.dp))
     }
 }
 
 /**
- * Guided path: master continents one by one. Recommends the first continent
- * (in PATH_ORDER) that is not yet 80% mastered and starts an interleaved
- * session scoped to it.
+ * The single primary CTA: overdue reviews win; otherwise continue the
+ * learning path on the recommended continent.
  */
 @Composable
-private fun LearningPathCard(
+private fun HeroCard(
     data: AppData,
     progress: Progress,
-    onStartSession: (String) -> Unit,
     onContinentChange: (String?) -> Unit,
+    onStartSession: (String) -> Unit,
 ) {
+    val today = remember { LocalDate.now().toEpochDay() }
+    val dueCount = remember(progress) { progress.dueItems(today).size }
     val fractions = remember(progress, data) {
         PATH_ORDER.associateWith { continent ->
             continentMastery(progress, data.countries.filter { it.continent == continent })
         }
     }
     val recommended = PATH_ORDER.firstOrNull { (fractions[it] ?: 0f) < 0.8f } ?: PATH_ORDER.last()
-
-    Card(colors = CardDefaults.cardColors()) {
-        Column(Modifier.padding(14.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(
-                    Icons.AutoMirrored.Filled.TrendingUp,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
-                )
-                Spacer(Modifier.width(10.dp))
-                Text(
-                    stringResource(R.string.path_title),
-                    style = MaterialTheme.typography.titleMedium,
-                    modifier = Modifier.weight(1f),
-                )
-                Button(onClick = {
-                    onContinentChange(recommended)
-                    onStartSession("mix")
-                }) {
-                    Text(stringResource(R.string.path_learn, recommended))
-                }
-            }
-            Spacer(Modifier.height(12.dp))
-            LazyRow(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-                items(PATH_ORDER) { continent ->
-                    val fraction = fractions[continent] ?: 0f
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        ScoreRing(
-                            fraction = fraction,
-                            modifier = Modifier.size(46.dp),
-                            ringWidth = 5.dp,
-                            color = if (continent == recommended) {
-                                MaterialTheme.colorScheme.primary
-                            } else Color(0xFF43A047),
-                        ) {
-                            Text(
-                                "${(fraction * 100).toInt()}%",
-                                style = MaterialTheme.typography.labelSmall,
-                            )
-                        }
-                        Spacer(Modifier.height(4.dp))
-                        Text(
-                            continent.replace("Ameryka ", "Am. "),
-                            style = MaterialTheme.typography.labelSmall,
-                            color = if (continent == recommended) {
-                                MaterialTheme.colorScheme.primary
-                            } else MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun ReviewCard(progress: Progress, onStart: () -> Unit) {
-    val today = remember { LocalDate.now().toEpochDay() }
-    val dueCount = remember(progress) { progress.dueItems(today).size }
+    val reviewMode = dueCount > 0
 
     Card(
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.primary,
         ),
     ) {
-        Row(
-            Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Icon(
-                Icons.Default.Replay,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onPrimary,
-                modifier = Modifier.size(32.dp),
-            )
-            Spacer(Modifier.width(14.dp))
-            Column(Modifier.weight(1f)) {
-                Text(
-                    stringResource(R.string.review_title),
-                    style = MaterialTheme.typography.titleLarge,
-                    color = MaterialTheme.colorScheme.onPrimary,
-                )
-                Text(
-                    text = if (dueCount > 0) {
-                        pluralStringResource(R.plurals.review_due, dueCount, dueCount)
-                    } else {
-                        stringResource(R.string.review_none_due)
-                    },
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.85f),
-                )
-            }
-            Spacer(Modifier.width(10.dp))
-            Button(
-                onClick = onStart,
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.onPrimary,
-                    contentColor = MaterialTheme.colorScheme.primary,
-                ),
-            ) {
-                Text(stringResource(R.string.review_start))
-            }
-        }
-    }
-}
-
-@Composable
-private fun StatsCard(data: AppData, progress: Progress) {
-    val totalSlots = data.countries.sumOf { modesFor(it).size } + data.events.size
-    val mastered = data.countries.sumOf { c ->
-        modesFor(c).count { progress.isMastered(it, c.cca2) }
-    } + progress.masteredCount(QuizMode.HISTORY, data.events.map { it.id.toString() })
-    val attempts = progress.totalAttempts
-    val accuracy = if (attempts == 0) 0 else (100 * progress.totalCorrect / attempts)
-    val today = remember { LocalDate.now().toEpochDay() }
-    val dayStreak = progress.currentDayStreak(today)
-
-    Card(colors = CardDefaults.cardColors()) {
         Column(Modifier.padding(16.dp)) {
-        Row(
-            Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
             Text(
-                stringResource(R.string.stats_level, progress.level),
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.primary,
+                stringResource(R.string.home_continue),
+                style = MaterialTheme.typography.titleLarge,
+                color = MaterialTheme.colorScheme.onPrimary,
             )
-            Spacer(Modifier.width(12.dp))
-            LinearProgressIndicator(
-                progress = { progress.levelFraction },
-                modifier = Modifier
-                    .weight(1f)
-                    .height(8.dp)
-                    .clip(CircleShape),
-            )
-            Spacer(Modifier.width(12.dp))
             Text(
-                stringResource(R.string.stats_xp, progress.xp),
-                style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                text = if (reviewMode) {
+                    pluralStringResource(R.plurals.review_due, dueCount, dueCount)
+                } else {
+                    stringResource(R.string.hero_path_desc, recommended)
+                },
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.85f),
             )
-        }
-        Spacer(Modifier.height(14.dp))
-        Row(
-            Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            ScoreRing(
-                fraction = if (totalSlots == 0) 0f else mastered.toFloat() / totalSlots,
-                modifier = Modifier.size(84.dp),
-            ) {
-                Text(
-                    "${if (totalSlots == 0) 0 else 100 * mastered / totalSlots}%",
-                    style = MaterialTheme.typography.titleLarge,
-                )
-            }
-            Spacer(Modifier.width(16.dp))
-            Row(
-                Modifier.weight(1f),
-                horizontalArrangement = Arrangement.SpaceEvenly,
-            ) {
-                StatColumn("$mastered", stringResource(R.string.stats_mastered))
-                StatColumn("$accuracy%", stringResource(R.string.stats_accuracy))
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            Icons.Default.LocalFireDepartment,
-                            contentDescription = null,
-                            tint = if (dayStreak > 0) Color(0xFFE65100)
-                            else MaterialTheme.colorScheme.outline,
-                            modifier = Modifier.size(22.dp),
-                        )
-                        Text("$dayStreak", style = MaterialTheme.typography.titleLarge)
+            Spacer(Modifier.height(12.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Row(
+                    Modifier.weight(1f),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    PATH_ORDER.take(3).forEach { continent ->
+                        val fraction = fractions[continent] ?: 0f
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            ScoreRing(
+                                fraction = fraction,
+                                modifier = Modifier.size(34.dp),
+                                ringWidth = 4.dp,
+                                color = MaterialTheme.colorScheme.onPrimary,
+                                track = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.25f),
+                            ) {}
+                            Spacer(Modifier.height(2.dp))
+                            Text(
+                                continent.replace("Ameryka ", "Am. "),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.8f),
+                                maxLines = 1,
+                            )
+                        }
                     }
+                }
+                Button(
+                    onClick = {
+                        if (reviewMode) {
+                            onStartSession(SESSION_REVIEW)
+                        } else {
+                            onContinentChange(recommended)
+                            onStartSession(SESSION_MIX)
+                        }
+                    },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.onPrimary,
+                        contentColor = MaterialTheme.colorScheme.primary,
+                    ),
+                    modifier = Modifier.testTag("hero_action"),
+                ) {
                     Text(
-                        stringResource(R.string.stats_day_streak),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        stringResource(
+                            if (reviewMode) R.string.hero_review_button
+                            else R.string.hero_path_button
+                        ),
                     )
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun StatsStrip(data: AppData, progress: Progress) {
+    val totalSlots = data.countries.sumOf { modesFor(it).size } + data.events.size
+    val mastered = data.countries.sumOf { c ->
+        modesFor(c).count { progress.isMastered(it, c.cca2) }
+    } + progress.masteredCount(QuizMode.HISTORY, data.events.map { it.id.toString() })
+    val today = remember { LocalDate.now().toEpochDay() }
+    val dayStreak = progress.currentDayStreak(today)
+
+    Card(colors = CardDefaults.cardColors()) {
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 14.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                stringResource(R.string.stats_level, progress.level),
+                style = MaterialTheme.typography.titleSmall,
+                color = MaterialTheme.colorScheme.primary,
+            )
+            Spacer(Modifier.width(10.dp))
+            LinearProgressIndicator(
+                progress = { progress.levelFraction },
+                modifier = Modifier
+                    .weight(1f)
+                    .height(7.dp)
+                    .clip(CircleShape),
+            )
+            Spacer(Modifier.width(12.dp))
+            Icon(
+                Icons.Default.LocalFireDepartment,
+                contentDescription = stringResource(R.string.stats_day_streak),
+                tint = if (dayStreak > 0) Color(0xFFE65100)
+                else MaterialTheme.colorScheme.outline,
+                modifier = Modifier.size(18.dp),
+            )
+            Text("$dayStreak", style = MaterialTheme.typography.titleSmall)
+            Spacer(Modifier.width(12.dp))
+            Text(
+                stringResource(R.string.stats_mastered_short, mastered, totalSlots),
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         }
     }
 }
 
 @Composable
-private fun ModeCard(
+private fun PracticeTile(
     icon: ImageVector,
     title: String,
-    description: String,
     container: Color,
     onContainer: Color,
+    modifier: Modifier = Modifier,
     onClick: () -> Unit,
 ) {
     Card(
         colors = CardDefaults.cardColors(containerColor = container),
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick),
+        modifier = modifier.clickable(onClick = onClick),
     ) {
-        Row(
-            Modifier.padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically,
+        Column(
+            Modifier
+                .fillMaxWidth()
+                .padding(vertical = 18.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            Box(
-                Modifier
-                    .size(52.dp)
-                    .clip(CircleShape)
-                    .background(onContainer.copy(alpha = 0.12f)),
-                contentAlignment = Alignment.Center,
-            ) {
-                Icon(icon, contentDescription = null, tint = onContainer, modifier = Modifier.size(28.dp))
-            }
-            Spacer(Modifier.width(16.dp))
-            Column {
-                Text(title, style = MaterialTheme.typography.titleLarge, color = onContainer)
-                Text(
-                    description,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = onContainer.copy(alpha = 0.8f),
-                )
-            }
+            Icon(icon, contentDescription = null, tint = onContainer, modifier = Modifier.size(30.dp))
+            Spacer(Modifier.height(6.dp))
+            Text(
+                title,
+                style = MaterialTheme.typography.titleMedium,
+                color = onContainer,
+                textAlign = TextAlign.Center,
+            )
         }
+    }
+}
+
+@Composable
+private fun ExploreRow(icon: ImageVector, title: String, onClick: () -> Unit) {
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .clip(MaterialTheme.shapes.medium)
+            .clickable(onClick = onClick)
+            .padding(horizontal = 6.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Box(
+            Modifier
+                .size(38.dp)
+                .clip(CircleShape)
+                .background(MaterialTheme.colorScheme.surfaceVariant),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(
+                icon,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(20.dp),
+            )
+        }
+        Spacer(Modifier.width(14.dp))
+        Text(
+            title,
+            style = MaterialTheme.typography.bodyLarge,
+            modifier = Modifier.weight(1f),
+        )
+        Icon(
+            Icons.AutoMirrored.Filled.KeyboardArrowRight,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.outline,
+        )
     }
 }
