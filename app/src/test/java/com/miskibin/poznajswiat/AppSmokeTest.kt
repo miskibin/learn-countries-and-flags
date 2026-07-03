@@ -103,7 +103,6 @@ class AppSmokeTest {
         screenshot("08_history_quiz")
         rule.onAllNodesWithTag("quiz_option")[0].performClick()
         awaitText("Dalej")
-        awaitText("Nowożytność") // timeline bar era labels
         screenshot("09_history_quiz_answered")
         rule.activityRule.scenario.onActivity { it.onBackPressedDispatcher.onBackPressed() }
         awaitText("Stolice")

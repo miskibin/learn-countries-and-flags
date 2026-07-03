@@ -23,11 +23,30 @@ data class HistoryEvent(
     val title: String,
     val desc: String,
     val countries: List<String> = emptyList(),
+    /** 1-2 themes from the fixed taxonomy in [EVENT_THEMES]. */
+    val tags: List<String> = emptyList(),
+    /** Single pictogram for dual-coding the event in timelines and quizzes. */
+    val emoji: String = "",
 ) {
     /** "44 p.n.e." / "1939" */
     val yearLabel: String
         get() = if (year < 0) "${-year} p.n.e." else "$year"
 }
+
+/** Fixed theme taxonomy for history events (order = legend order). */
+val EVENT_THEMES = listOf(
+    "Polska",
+    "Wojny",
+    "Władcy i imperia",
+    "Odkrycia",
+    "Nauka i technika",
+    "Religia",
+    "Rewolucje",
+    "Kultura",
+    "Katastrofy",
+    "Społeczeństwo i prawo",
+    "Gospodarka",
+)
 
 val CONTINENTS = listOf(
     "Europa",

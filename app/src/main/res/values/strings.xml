@@ -57,6 +57,7 @@
     <string name="results_xp">+%1$d XP</string>
     <string name="quiz_progress">Pytanie %1$d z %2$d</string>
     <string name="quiz_correct">Dobrze!</string>
+    <string name="quiz_correct_was">Poprawna odpowiedź: %1$s</string>
     <string name="quiz_wrong">Niestety, to %1$s</string>
     <string name="quiz_map_wrong_tap">To %1$s. Spróbuj jeszcze raz!</string>
     <string name="quiz_map_revealed">Prawidłowa odpowiedź została podświetlona</string>

@@ -1,6 +1,7 @@
 package com.miskibin.poznajswiat.ui.history
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -102,22 +103,28 @@ fun EventCard(
     onOpenCountry: ((String) -> Unit)?,
     modifier: Modifier = Modifier,
 ) {
+    val dark = isSystemInDarkTheme()
+    val accent = event.tags.firstOrNull()?.let { themeColor(it, dark) }
+        ?: MaterialTheme.colorScheme.primary
     Card(modifier.fillMaxWidth()) {
         Row(Modifier.padding(14.dp)) {
             Surface(
-                color = MaterialTheme.colorScheme.primaryContainer,
+                color = accent.copy(alpha = 0.16f),
                 shape = RoundedCornerShape(10.dp),
             ) {
                 Text(
                     event.yearLabel,
                     style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.onPrimaryContainer,
+                    color = accent,
                     modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
                 )
             }
             Spacer(Modifier.width(12.dp))
             Column(Modifier.weight(1f)) {
-                Text(event.title, style = MaterialTheme.typography.titleMedium)
+                Text(
+                    if (event.emoji.isNotEmpty()) "${event.emoji} ${event.title}" else event.title,
+                    style = MaterialTheme.typography.titleMedium,
+                )
                 Spacer(Modifier.height(4.dp))
                 Text(
                     event.desc,

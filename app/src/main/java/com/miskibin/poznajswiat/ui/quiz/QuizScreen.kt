@@ -29,9 +29,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Cancel
 import androidx.compose.material.icons.filled.CheckCircle
@@ -53,6 +51,7 @@ import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
@@ -69,7 +68,9 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.miskibin.poznajswiat.R
 import com.miskibin.poznajswiat.data.QuizMode
 import com.miskibin.poznajswiat.data.XP_PER_CORRECT
@@ -78,7 +79,8 @@ import com.miskibin.poznajswiat.ui.CorrectGreen
 import com.miskibin.poznajswiat.ui.FlagImage
 import com.miskibin.poznajswiat.ui.ScoreRing
 import com.miskibin.poznajswiat.ui.WrongRed
-import com.miskibin.poznajswiat.ui.history.TimelineBar
+import com.miskibin.poznajswiat.ui.history.ContextTimeline
+import com.miskibin.poznajswiat.ui.history.buildTimelineContext
 import com.miskibin.poznajswiat.ui.map.WorldMapView
 import com.miskibin.poznajswiat.ui.rememberAnswerColors
 import com.miskibin.poznajswiat.ui.rememberHaptics
@@ -186,12 +188,12 @@ private fun OptionsQuestionContent(
     q: Question,
 ) {
     val data = state.data ?: return
-    Column(
-        Modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(horizontal = 16.dp),
-    ) {
+    Box(Modifier.fillMaxSize()) {
+        Column(
+            Modifier
+                .fillMaxSize()
+                .padding(horizontal = 16.dp),
+        ) {
         when (q.kind) {
             QuizMode.FLAGS -> if (q.reverse) {
                 QuestionTitle(stringResource(R.string.quiz_question_flag_reverse))
@@ -204,12 +206,12 @@ private fun OptionsQuestionContent(
                 )
             } else {
                 QuestionTitle(stringResource(R.string.quiz_question_flags))
-                Spacer(Modifier.height(16.dp))
+                Spacer(Modifier.height(12.dp))
                 Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
                     FlagImage(
                         resId = data.flagRes[q.target!!.cca2] ?: 0,
                         contentDescription = null,
-                        modifier = Modifier.width(240.dp),
+                        modifier = Modifier.width(210.dp),
                         corner = 14.dp,
                     )
                 }
@@ -256,14 +258,18 @@ private fun OptionsQuestionContent(
                             Modifier.padding(16.dp),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
-                            Icon(
-                                Icons.Default.HistoryEdu,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                            )
+                            if (q.event!!.emoji.isNotEmpty()) {
+                                Text(q.event.emoji, fontSize = 26.sp)
+                            } else {
+                                Icon(
+                                    Icons.Default.HistoryEdu,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                                )
+                            }
                             Spacer(Modifier.width(12.dp))
                             Text(
-                                q.event!!.title,
+                                q.event.title,
                                 style = MaterialTheme.typography.titleLarge,
                                 color = MaterialTheme.colorScheme.onPrimaryContainer,
                             )
@@ -273,7 +279,7 @@ private fun OptionsQuestionContent(
             }
         }
 
-        Spacer(Modifier.height(24.dp))
+        Spacer(Modifier.height(16.dp))
 
         if (q.kind == QuizMode.FLAGS && q.reverse) {
             FlagGridOptions(viewModel, state, q)
@@ -285,7 +291,10 @@ private fun OptionsQuestionContent(
                     }
                 q.kind == QuizMode.HISTORY && q.form == HistoryForm.ORDER ->
                     listOf(q.event!!, q.eventB!!).sortedBy { it.id }.map { e ->
-                        val label = if (state.answered) "${e.title} (${e.yearLabel})" else e.title
+                        val prefix = if (e.emoji.isNotEmpty()) "${e.emoji} " else ""
+                        val label =
+                            if (state.answered) "$prefix${e.title} (${e.yearLabel})"
+                            else "$prefix${e.title}"
                         e.id.toString() to label
                     }
                 q.kind == QuizMode.HISTORY -> q.options.map { it.cca2 to it.namePl }
@@ -303,24 +312,125 @@ private fun OptionsQuestionContent(
             }
         }
 
-        AnimatedVisibility(
-            visible = state.answered,
-            enter = fadeIn() + slideInVertically { it / 3 },
+        }
+
+        // Duolingo-style bottom feedback panel — everything the learner needs
+        // after answering, without any scrolling.
+        AnswerFeedbackPanel(
+            viewModel = viewModel,
+            state = state,
+            q = q,
+            modifier = Modifier.align(Alignment.BottomCenter),
+        )
+    }
+}
+
+/**
+ * Post-answer overlay: status + restated correct answer, ONE short
+ * elaboration (fact / event context) and — for history — the context
+ * timeline anchoring the event among related ones.
+ */
+@Composable
+private fun AnswerFeedbackPanel(
+    viewModel: QuizViewModel,
+    state: QuizUiState,
+    q: Question,
+    modifier: Modifier = Modifier,
+) {
+    val data = state.data ?: return
+    val answers = rememberAnswerColors()
+    AnimatedVisibility(
+        visible = state.answered,
+        enter = fadeIn() + slideInVertically { it / 2 },
+        modifier = modifier,
+    ) {
+        Surface(
+            shape = RoundedCornerShape(topStart = 22.dp, topEnd = 22.dp),
+            tonalElevation = 8.dp,
+            shadowElevation = 12.dp,
         ) {
-            Column {
-                Spacer(Modifier.height(10.dp))
-                ComboChip(state)
-                FactCard(fact = q.event?.desc ?: q.target?.fact.orEmpty())
-                if (q.kind == QuizMode.HISTORY && q.event != null) {
-                    Spacer(Modifier.height(12.dp))
-                    TimelineBar(event = q.event, allEvents = data.events)
+            Column(
+                Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 14.dp)
+                    .navigationBarsPadding(),
+            ) {
+                val correct = state.lastCorrect
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        if (correct) Icons.Default.CheckCircle else Icons.Default.Cancel,
+                        contentDescription = null,
+                        tint = if (correct) answers.correctAccent else answers.wrongAccent,
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Text(
+                        text = if (correct) {
+                            stringResource(R.string.quiz_correct)
+                        } else {
+                            stringResource(R.string.quiz_correct_was, correctAnswerLabel(q))
+                        },
+                        style = MaterialTheme.typography.titleMedium,
+                        color = if (correct) answers.correctAccent else answers.wrongAccent,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f),
+                    )
+                    if (correct && state.combo >= 2) {
+                        Text(
+                            stringResource(R.string.quiz_combo, state.combo),
+                            style = MaterialTheme.typography.titleSmall,
+                            color = Color(0xFFE65100),
+                        )
+                    }
                 }
-                Spacer(Modifier.height(12.dp))
-                NextButton(viewModel, state)
+                Spacer(Modifier.height(8.dp))
+                if (q.kind == QuizMode.HISTORY && q.event != null) {
+                    Text(
+                        q.event.desc,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 3,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    Spacer(Modifier.height(10.dp))
+                    val timelineContext = remember(q.event.id) {
+                        buildTimelineContext(q.event, data.events)
+                    }
+                    ContextTimeline(target = q.event, context = timelineContext)
+                } else {
+                    Row(verticalAlignment = Alignment.Top) {
+                        Icon(
+                            Icons.Default.Lightbulb,
+                            contentDescription = stringResource(R.string.quiz_fact_label),
+                            tint = MaterialTheme.colorScheme.secondary,
+                            modifier = Modifier.size(18.dp),
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        Text(
+                            q.target?.fact.orEmpty(),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 3,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
+                }
+                Spacer(Modifier.height(10.dp))
+                NextButton(viewModel, state, compact = true)
             }
         }
-        Spacer(Modifier.height(24.dp))
     }
+}
+
+/** Human-readable correct answer, restated in the feedback panel. */
+private fun correctAnswerLabel(q: Question): String = when {
+    q.kind == QuizMode.CAPITALS -> q.target?.capitalPl.orEmpty()
+    q.kind == QuizMode.HISTORY && q.form == HistoryForm.YEAR -> q.event?.yearLabel.orEmpty()
+    q.kind == QuizMode.HISTORY && q.form == HistoryForm.ORDER -> {
+        val earlier = if (q.event!!.year <= q.eventB!!.year) q.event else q.eventB
+        "${earlier.title} (${earlier.yearLabel})"
+    }
+    else -> q.target?.namePl.orEmpty()
 }
 
 /** "🔥 Seria x3!" celebration chip for in-session combos. */
