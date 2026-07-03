@@ -27,6 +27,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.miskibin.poznajswiat.data.EVENT_THEMES
@@ -177,7 +178,10 @@ private fun gapLabel(diff: Int): String {
 }
 
 private const val RAIL_WIDTH_DP = 40
-private const val YEAR_WIDTH_DP = 76
+
+/** BCE labels ("480 p.n.e.") need more room than plain CE years ("1920"). */
+private const val YEAR_WIDTH_CE_DP = 52
+private const val YEAR_WIDTH_BCE_DP = 92
 
 /**
  * Compact VERTICAL context chronology built for MEMORABILITY. Events (the
@@ -227,6 +231,8 @@ fun ContextTimeline(
                 .heightIn(max = 280.dp)
                 .verticalScroll(rememberScrollState()),
         ) {
+            val yearWidth =
+                if (rows.any { it.year < 0 }) YEAR_WIDTH_BCE_DP.dp else YEAR_WIDTH_CE_DP.dp
             rows.forEachIndexed { index, event ->
                 val isTarget = event === target
                 val color = event.tags.firstOrNull()?.let { themeColor(it, dark) } ?: muted
@@ -235,6 +241,7 @@ fun ContextTimeline(
                     isTarget = isTarget,
                     color = color,
                     rail = rail,
+                    yearWidth = yearWidth,
                     onEventClick = onEventClick,
                 )
                 if (index < rows.lastIndex) {
@@ -281,6 +288,7 @@ private fun EventRow(
     isTarget: Boolean,
     color: Color,
     rail: Color,
+    yearWidth: Dp,
     onEventClick: ((HistoryEvent) -> Unit)?,
 ) {
     val rowModifier = Modifier
@@ -312,7 +320,7 @@ private fun EventRow(
                 fontWeight = FontWeight.Bold,
                 color = color,
                 maxLines = 1,
-                modifier = Modifier.width(YEAR_WIDTH_DP.dp),
+                modifier = Modifier.width(yearWidth),
             )
             Text(
                 event.title,
@@ -322,7 +330,7 @@ private fun EventRow(
                     MaterialTheme.typography.bodyMedium
                 },
                 color = MaterialTheme.colorScheme.onSurface,
-                maxLines = 1,
+                maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.weight(1f),
             )

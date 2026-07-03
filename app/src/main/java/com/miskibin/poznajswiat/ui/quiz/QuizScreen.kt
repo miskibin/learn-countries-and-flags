@@ -375,7 +375,7 @@ private fun AnswerFeedbackPanel(
                         },
                         style = MaterialTheme.typography.titleMedium,
                         color = if (correct) answers.correctAccent else answers.wrongAccent,
-                        maxLines = 2,
+                        maxLines = 3,
                         overflow = TextOverflow.Ellipsis,
                         modifier = Modifier.weight(1f),
                     )
@@ -393,8 +393,6 @@ private fun AnswerFeedbackPanel(
                         q.event.desc,
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 3,
-                        overflow = TextOverflow.Ellipsis,
                     )
                     Spacer(Modifier.height(10.dp))
                     val timelineContext = remember(q.event.id) {
@@ -418,8 +416,6 @@ private fun AnswerFeedbackPanel(
                             q.target?.fact.orEmpty(),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            maxLines = 3,
-                            overflow = TextOverflow.Ellipsis,
                         )
                     }
                 }
