@@ -35,6 +35,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -320,10 +321,34 @@ private fun StatsCard(data: AppData, progress: Progress) {
     val dayStreak = progress.currentDayStreak(today)
 
     Card(colors = CardDefaults.cardColors()) {
+        Column(Modifier.padding(16.dp)) {
         Row(
-            Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
+            Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                stringResource(R.string.stats_level, progress.level),
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.primary,
+            )
+            Spacer(Modifier.width(12.dp))
+            LinearProgressIndicator(
+                progress = { progress.levelFraction },
+                modifier = Modifier
+                    .weight(1f)
+                    .height(8.dp)
+                    .clip(CircleShape),
+            )
+            Spacer(Modifier.width(12.dp))
+            Text(
+                stringResource(R.string.stats_xp, progress.xp),
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        Spacer(Modifier.height(14.dp))
+        Row(
+            Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             ScoreRing(
@@ -360,6 +385,7 @@ private fun StatsCard(data: AppData, progress: Progress) {
                     )
                 }
             }
+        }
         }
     }
 }

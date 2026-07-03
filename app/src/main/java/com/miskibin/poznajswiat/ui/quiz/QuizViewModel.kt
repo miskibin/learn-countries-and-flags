@@ -28,9 +28,17 @@ import kotlin.math.max
 import kotlin.math.min
 import kotlin.random.Random
 
+/** The three shapes a history question can take. */
+enum class HistoryForm { YEAR, ORDER, COUNTRY }
+
+const val SESSION_BONUS_XP = 5
+const val PERFECT_BONUS_XP = 20
+
 /**
  * One quiz question. [kind] decides the rendering: country-based kinds carry
- * [target] (+[options] for flags/capitals), HISTORY carries [event]+[yearOptions].
+ * [target] (+[options] for flags/capitals); HISTORY carries [event] and,
+ * depending on [form], year options, a second event to order against, or
+ * country options (with [target] as the right country).
  */
 data class Question(
     val kind: QuizMode,
@@ -40,13 +48,24 @@ data class Question(
     val yearOptions: List<Int> = emptyList(),
     /** FLAGS only: show the country name, choose among four flags. */
     val reverse: Boolean = false,
+    val form: HistoryForm = HistoryForm.YEAR,
+    val eventB: HistoryEvent? = null,
 ) {
     val itemId: String
-        get() = itemId(kind, target?.cca2 ?: event!!.id.toString())
+        get() = if (kind == QuizMode.HISTORY) itemId(kind, event!!.id.toString())
+        else itemId(kind, target!!.cca2)
 
-    /** The option key that is the correct answer (cca2 or year as string). */
+    /** The option key that is the correct answer. */
     val correctKey: String
-        get() = target?.cca2 ?: event!!.year.toString()
+        get() = when {
+            kind != QuizMode.HISTORY -> target!!.cca2
+            form == HistoryForm.YEAR -> event!!.year.toString()
+            form == HistoryForm.ORDER -> {
+                val earlier = if (event!!.year <= eventB!!.year) event else eventB
+                earlier.id.toString()
+            }
+            else -> target!!.cca2 // COUNTRY
+        }
 }
 
 data class QuestionResult(
@@ -68,8 +87,12 @@ data class QuizUiState(
     val lastWrongTap: String? = null,
     val results: List<QuestionResult> = emptyList(),
     val finished: Boolean = false,
+    /** Consecutive correct answers within this session. */
+    val combo: Int = 0,
 ) {
     val current: Question? get() = questions.getOrNull(index)
+
+    val lastCorrect: Boolean get() = answered && results.lastOrNull()?.correct == true
 }
 
 class QuizViewModel(
@@ -143,9 +166,44 @@ class QuizViewModel(
     /** Countries a map question can meaningfully ask about. */
     private fun mapPool(countries: List<Country>) = countries.filter { it.hasPoly }
 
-    private fun historyQuestion(event: HistoryEvent): Question {
-        // Year distractors scale with how long ago the event happened, so
-        // ancient events get century-scale offsets and modern ones small gaps.
+    /** Randomly picks one of three history-question shapes for variety. */
+    private fun historyQuestion(data: AppData, event: HistoryEvent): Question {
+        val roll = Random.nextFloat()
+
+        // "Which country is this event tied to?"
+        val countryTarget = event.countries.firstNotNullOfOrNull { data.byCode[it] }
+        if (roll < 0.28f && countryTarget != null) {
+            val sameContinent = data.countries
+                .filter { it.continent == countryTarget.continent && it.cca2 !in event.countries }
+                .shuffled()
+            val others = data.countries
+                .filter { it.continent != countryTarget.continent && it.cca2 !in event.countries }
+                .shuffled()
+            return Question(
+                kind = QuizMode.HISTORY,
+                target = countryTarget,
+                options = ((sameContinent + others).take(3) + countryTarget).shuffled(),
+                event = event,
+                form = HistoryForm.COUNTRY,
+            )
+        }
+
+        // "Which happened earlier?" — partner must not be a near-tie.
+        if (roll < 0.56f) {
+            val partner = data.events
+                .filter { it.id != event.id && abs(it.year - event.year) >= 25 }
+                .randomOrNull()
+            if (partner != null) {
+                return Question(
+                    kind = QuizMode.HISTORY,
+                    event = event,
+                    eventB = partner,
+                    form = HistoryForm.ORDER,
+                )
+            }
+        }
+
+        // "In which year?" — distractors scale with how long ago it happened.
         val spread = max(4, abs(LocalDate.now().year - event.year) / 8)
         val years = mutableSetOf(event.year)
         while (years.size < 4) {
@@ -197,7 +255,7 @@ class QuizViewModel(
         val relatedEvents = data.events.filter { e -> e.countries.any { it in poolCodes } }
         val historyPart = pickWeighted(relatedEvents, 2) {
             progress.streak(QuizMode.HISTORY, it.id.toString())
-        }.map { historyQuestion(it) }
+        }.map { historyQuestion(data, it) }
 
         return (countryPart + historyPart).shuffled()
     }
@@ -206,7 +264,7 @@ class QuizViewModel(
         val targets = pickWeighted(data.events, QUESTIONS_PER_SESSION) {
             progress.streak(QuizMode.HISTORY, it.id.toString())
         }
-        return targets.map { historyQuestion(it) }
+        return targets.map { historyQuestion(data, it) }
     }
 
     private fun buildReviewSession(data: AppData, progress: Progress): List<Question> {
@@ -217,7 +275,7 @@ class QuizViewModel(
                 ?: return@mapNotNull null
             val key = id.substringAfter('/')
             when (mode) {
-                QuizMode.HISTORY -> data.eventsById[key.toIntOrNull()]?.let { historyQuestion(it) }
+                QuizMode.HISTORY -> data.eventsById[key.toIntOrNull()]?.let { historyQuestion(data, it) }
                 QuizMode.MAP -> data.byCode[key]?.takeIf { it.hasPoly }
                     ?.let { countryQuestion(data, mode, it) }
                 else -> data.byCode[key]?.let { countryQuestion(data, mode, it) }
@@ -241,7 +299,7 @@ class QuizViewModel(
                 id !in have && (progress.attempts[id] ?: 0) == 0
             }.shuffled().take(QUESTIONS_PER_SESSION - questions.size)
             questions += fresh.map { (mode, item) ->
-                if (mode == QuizMode.HISTORY) historyQuestion(item as HistoryEvent)
+                if (mode == QuizMode.HISTORY) historyQuestion(data, item as HistoryEvent)
                 else countryQuestion(data, mode, item as Country)
             }
         }
@@ -258,6 +316,7 @@ class QuizViewModel(
             answered = true,
             selected = key,
             score = s.score + if (correct) 1 else 0,
+            combo = if (correct) s.combo + 1 else 0,
             results = s.results + QuestionResult(q, correct),
         )
         viewModelScope.launch { repo.record(q.itemId, correct) }
@@ -273,6 +332,7 @@ class QuizViewModel(
             _state.value = s.copy(
                 answered = true,
                 score = s.score + if (firstTry) 1 else 0,
+                combo = if (firstTry) s.combo + 1 else 0,
                 lastWrongTap = null,
                 results = s.results + QuestionResult(q, firstTry),
             )
@@ -284,6 +344,7 @@ class QuizViewModel(
                     answered = true,
                     revealed = true,
                     triesLeft = 0,
+                    combo = 0,
                     lastWrongTap = cca2,
                     wrongTaps = if (cca2 != null) s.wrongTaps + cca2 else s.wrongTaps,
                     results = s.results + QuestionResult(q, false),
@@ -308,6 +369,7 @@ class QuizViewModel(
             answered = true,
             revealed = true,
             triesLeft = 0,
+            combo = 0,
             lastWrongTap = null,
             results = s.results + QuestionResult(q, false),
         )
@@ -319,6 +381,10 @@ class QuizViewModel(
         if (!s.answered) return
         if (s.index + 1 >= s.questions.size) {
             _state.value = s.copy(finished = true)
+            // Session-completion bonus, doubled up for a perfect run.
+            val bonus = SESSION_BONUS_XP +
+                if (s.score == s.questions.size && s.questions.isNotEmpty()) PERFECT_BONUS_XP else 0
+            viewModelScope.launch { repo.addXp(bonus) }
         } else {
             _state.value = s.copy(
                 index = s.index + 1,

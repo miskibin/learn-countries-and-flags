@@ -14,8 +14,9 @@ Aplikacja na Androida do nauki krajów świata — ich **flag**, **stolic** i **
 - **Quiz „Flagi"** — zgadnij kraj po fladze albo (losowo) flagę po kraju z siatki czterech flag.
 - **Quiz „Mapa"** — wskaż podany kraj na interaktywnej mapie świata (przybliżanie, przesuwanie, 3 próby na pytanie, przycisk „Nie wiem — pokaż" z najazdem kamery na odpowiedź).
 - **Quiz „Stolice"** — dopasuj stolicę do kraju.
-- **Quiz „Historia"** — dopasuj rok do wydarzenia; po odpowiedzi mini-oś czasu pokazuje epokę oraz najbliższe wcześniejsze i późniejsze wydarzenie.
-- **Oś czasu** — 90 najważniejszych wydarzeń historii świata (od rewolucji neolitycznej po XXI wiek) podzielonych na epoki, z powiązanymi krajami.
+- **Quiz „Historia"** w trzech formach — dopasuj rok, wskaż które z dwóch wydarzeń było wcześniej, albo połącz wydarzenie z krajem; po odpowiedzi mini-oś czasu pokazuje epokę oraz najbliższe wcześniejsze i późniejsze wydarzenie.
+- **Oś czasu** — 150 najważniejszych wydarzeń historii świata (od rewolucji neolitycznej po XXI wiek) podzielonych na epoki, z powiązanymi krajami i dwuzdaniowym kontekstem.
+- **XP, poziomy i nagrody** — punkty za każdą poprawną odpowiedź, bonus za ukończenie i perfekcyjną sesję, poziomy z paskiem postępu, seria poprawnych odpowiedzi („combo"), konfetti i wibracje (sukces/błąd/świętowanie) — pełny „game feel" w stylu Duolingo.
 - **Przeglądaj kraje** — lista 197 krajów z wyszukiwarką (ignoruje polskie znaki), filtrem kontynentów, ciekawostką i mini-mapą dla każdego kraju. Ekran kraju pokazuje region (np. „Europa Środkowa"), klikalnych sąsiadów i wydarzenia historyczne związane z krajem — wiedza łączy się w całość.
 - **Postępy nauki** — inteligentny dobór pytań (częściej pyta o to, czego jeszcze nie opanowałeś), seria 3 poprawnych odpowiedzi = materiał opanowany; statystyki na ekranie głównym.
 - Po każdej odpowiedzi wyświetlana jest **ciekawostka** o kraju lub kontekst wydarzenia.
@@ -25,7 +26,7 @@ Aplikacja na Androida do nauki krajów świata — ich **flag**, **stolic** i **
 ## Dane
 
 - 197 krajów (członkowie ONZ + Watykan, Palestyna, Tajwan, Kosowo) z sąsiadami i regionami.
-- 90 wydarzeń historycznych po polsku, rozłożonych równomiernie po epokach i kontynentach.
+- 150 wydarzeń historycznych po polsku, rozłożonych równomiernie po epokach i kontynentach.
 - Nazwy krajów po polsku z zestawu [mledoze/countries](https://github.com/mledoze/countries) (licencja ODbL).
 - Flagi z [flagcdn.com](https://flagcdn.com) (domena publiczna).
 - Granice państw z [world.geo.json](https://github.com/johan/world.geo.json) (Natural Earth, domena publiczna), wstępnie przetworzone do kompaktowego formatu.

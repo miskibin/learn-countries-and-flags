@@ -22,6 +22,9 @@ private val SRS_INTERVALS = intArrayOf(1, 2, 4, 7, 14, 30, 60, 120)
 
 fun itemId(mode: QuizMode, key: String): String = "${mode.id}/$key"
 
+const val XP_PER_CORRECT = 10
+const val XP_PER_LEVEL = 150
+
 data class Progress(
     val streaks: Map<String, Int> = emptyMap(),
     val attempts: Map<String, Int> = emptyMap(),
@@ -29,7 +32,13 @@ data class Progress(
     val dues: Map<String, Long> = emptyMap(),
     val dayStreak: Int = 0,
     val lastActiveDay: Long = 0,
+    val xp: Int = 0,
 ) {
+    val level: Int get() = xp / XP_PER_LEVEL + 1
+
+    /** 0..1 progress towards the next level. */
+    val levelFraction: Float get() = (xp % XP_PER_LEVEL).toFloat() / XP_PER_LEVEL
+
     fun streak(id: String): Int = streaks[id] ?: 0
 
     fun streak(mode: QuizMode, key: String): Int = streak(itemId(mode, key))
@@ -63,6 +72,7 @@ class ProgressRepo(private val context: Context) {
         val dues = mutableMapOf<String, Long>()
         var dayStreak = 0
         var lastDay = 0L
+        var xp = 0
         prefs.asMap().forEach { (key, value) ->
             val name = key.name
             when {
@@ -72,9 +82,17 @@ class ProgressRepo(private val context: Context) {
                 name.startsWith("d/") -> dues[name.removePrefix("d/")] = value as? Long ?: 0L
                 name == "meta/dayStreak" -> dayStreak = value as? Int ?: 0
                 name == "meta/lastDay" -> lastDay = value as? Long ?: 0L
+                name == "meta/xp" -> xp = value as? Int ?: 0
             }
         }
-        Progress(streaks, attempts, corrects, dues, dayStreak, lastDay)
+        Progress(streaks, attempts, corrects, dues, dayStreak, lastDay, xp)
+    }
+
+    suspend fun addXp(amount: Int) {
+        context.dataStore.edit { prefs ->
+            val key = intPreferencesKey("meta/xp")
+            prefs[key] = (prefs[key] ?: 0) + amount
+        }
     }
 
     suspend fun record(id: String, correct: Boolean, today: Long = LocalDate.now().toEpochDay()) {
@@ -89,6 +107,8 @@ class ProgressRepo(private val context: Context) {
                 prefs[cKey] = (prefs[cKey] ?: 0) + 1
                 prefs[sKey] = streak
                 prefs[dKey] = today + SRS_INTERVALS[min(streak - 1, SRS_INTERVALS.size - 1)]
+                val xpKey = intPreferencesKey("meta/xp")
+                prefs[xpKey] = (prefs[xpKey] ?: 0) + XP_PER_CORRECT
             } else {
                 prefs[sKey] = 0
                 prefs[dKey] = today

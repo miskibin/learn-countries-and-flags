@@ -2,9 +2,14 @@ package com.miskibin.poznajswiat.ui.quiz
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.MutableTransitionState
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.border
@@ -51,18 +56,24 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.miskibin.poznajswiat.R
 import com.miskibin.poznajswiat.data.QuizMode
+import com.miskibin.poznajswiat.data.XP_PER_CORRECT
+import com.miskibin.poznajswiat.ui.ConfettiOverlay
 import com.miskibin.poznajswiat.ui.CorrectGreen
 import com.miskibin.poznajswiat.ui.FlagImage
 import com.miskibin.poznajswiat.ui.ScoreRing
@@ -70,6 +81,7 @@ import com.miskibin.poznajswiat.ui.WrongRed
 import com.miskibin.poznajswiat.ui.history.TimelineBar
 import com.miskibin.poznajswiat.ui.map.WorldMapView
 import com.miskibin.poznajswiat.ui.rememberAnswerColors
+import com.miskibin.poznajswiat.ui.rememberHaptics
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -78,6 +90,18 @@ fun QuizScreen(
     onExit: () -> Unit,
 ) {
     val state by viewModel.state.collectAsState()
+    val haptics = rememberHaptics()
+
+    // Tactile feedback: happy double-tick on correct, firm buzz on wrong,
+    // tiny tick on a map miss that still leaves tries.
+    LaunchedEffect(state.answered, state.index) {
+        if (state.answered) {
+            if (state.lastCorrect) haptics.success() else haptics.error()
+        }
+    }
+    LaunchedEffect(state.lastWrongTap, state.triesLeft) {
+        if (!state.answered && state.lastWrongTap != null) haptics.tick()
+    }
 
     if (state.finished) {
         ResultsScreen(
@@ -130,10 +154,21 @@ fun QuizScreen(
                     .padding(horizontal = 16.dp),
             )
             Spacer(Modifier.height(12.dp))
-            if (q.kind == QuizMode.MAP) {
-                MapQuestionContent(viewModel, state, q)
-            } else {
-                OptionsQuestionContent(viewModel, state, q)
+            // Fresh slide-in for every question keeps the session lively.
+            key(state.index) {
+                val entrance = remember {
+                    MutableTransitionState(false).apply { targetState = true }
+                }
+                AnimatedVisibility(
+                    visibleState = entrance,
+                    enter = slideInHorizontally { it / 4 } + fadeIn(),
+                ) {
+                    if (q.kind == QuizMode.MAP) {
+                        MapQuestionContent(viewModel, state, q)
+                    } else {
+                        OptionsQuestionContent(viewModel, state, q)
+                    }
+                }
             }
         }
     }
@@ -194,30 +229,40 @@ private fun OptionsQuestionContent(
                 }
             }
 
-            else -> { // HISTORY
-                QuestionTitle(stringResource(R.string.quiz_question_history))
-                Spacer(Modifier.height(16.dp))
-                Card(
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.primaryContainer,
-                    ),
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    Row(
-                        Modifier.padding(16.dp),
-                        verticalAlignment = Alignment.CenterVertically,
+            else -> { // HISTORY — three forms
+                QuestionTitle(
+                    stringResource(
+                        when (q.form) {
+                            HistoryForm.YEAR -> R.string.quiz_question_history
+                            HistoryForm.ORDER -> R.string.quiz_question_history_order
+                            HistoryForm.COUNTRY -> R.string.quiz_question_history_country
+                        }
+                    )
+                )
+                if (q.form != HistoryForm.ORDER) {
+                    Spacer(Modifier.height(16.dp))
+                    Card(
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.primaryContainer,
+                        ),
+                        modifier = Modifier.fillMaxWidth(),
                     ) {
-                        Icon(
-                            Icons.Default.HistoryEdu,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                        )
-                        Spacer(Modifier.width(12.dp))
-                        Text(
-                            q.event!!.title,
-                            style = MaterialTheme.typography.titleLarge,
-                            color = MaterialTheme.colorScheme.onPrimaryContainer,
-                        )
+                        Row(
+                            Modifier.padding(16.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Icon(
+                                Icons.Default.HistoryEdu,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                            )
+                            Spacer(Modifier.width(12.dp))
+                            Text(
+                                q.event!!.title,
+                                style = MaterialTheme.typography.titleLarge,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer,
+                            )
+                        }
                     }
                 }
             }
@@ -228,11 +273,18 @@ private fun OptionsQuestionContent(
         if (q.kind == QuizMode.FLAGS && q.reverse) {
             FlagGridOptions(viewModel, state, q)
         } else {
-            val options: List<Pair<String, String>> = when (q.kind) {
-                QuizMode.HISTORY -> q.yearOptions.map {
-                    it.toString() to if (it < 0) "${-it} p.n.e." else it.toString()
-                }
-                QuizMode.CAPITALS -> q.options.map { it.cca2 to it.capitalPl }
+            val options: List<Pair<String, String>> = when {
+                q.kind == QuizMode.HISTORY && q.form == HistoryForm.YEAR ->
+                    q.yearOptions.map {
+                        it.toString() to if (it < 0) "${-it} p.n.e." else it.toString()
+                    }
+                q.kind == QuizMode.HISTORY && q.form == HistoryForm.ORDER ->
+                    listOf(q.event!!, q.eventB!!).sortedBy { it.id }.map { e ->
+                        val label = if (state.answered) "${e.title} (${e.yearLabel})" else e.title
+                        e.id.toString() to label
+                    }
+                q.kind == QuizMode.HISTORY -> q.options.map { it.cca2 to it.namePl }
+                q.kind == QuizMode.CAPITALS -> q.options.map { it.cca2 to it.capitalPl }
                 else -> q.options.map { it.cca2 to it.namePl }
             }
             options.forEach { (key, label) ->
@@ -252,7 +304,8 @@ private fun OptionsQuestionContent(
         ) {
             Column {
                 Spacer(Modifier.height(10.dp))
-                FactCard(fact = q.target?.fact ?: q.event?.desc.orEmpty())
+                ComboChip(state)
+                FactCard(fact = q.event?.desc ?: q.target?.fact.orEmpty())
                 if (q.kind == QuizMode.HISTORY && q.event != null) {
                     Spacer(Modifier.height(12.dp))
                     TimelineBar(event = q.event, allEvents = data.events)
@@ -262,6 +315,32 @@ private fun OptionsQuestionContent(
             }
         }
         Spacer(Modifier.height(24.dp))
+    }
+}
+
+/** "🔥 Seria x3!" celebration chip for in-session combos. */
+@Composable
+fun ComboChip(state: QuizUiState) {
+    if (!state.lastCorrect || state.combo < 2) return
+    val scale = remember { Animatable(0.4f) }
+    LaunchedEffect(state.index) {
+        scale.animateTo(1f, spring(dampingRatio = Spring.DampingRatioMediumBouncy))
+    }
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .padding(bottom = 8.dp),
+        horizontalArrangement = Arrangement.Center,
+    ) {
+        Text(
+            stringResource(R.string.quiz_combo, state.combo),
+            style = MaterialTheme.typography.titleMedium,
+            color = Color(0xFFE65100),
+            modifier = Modifier.graphicsLayer {
+                scaleX = scale.value
+                scaleY = scale.value
+            },
+        )
     }
 }
 
@@ -348,6 +427,21 @@ private fun OptionCard(
         answered -> MaterialTheme.colorScheme.onSurfaceVariant
         else -> MaterialTheme.colorScheme.onSurface
     }
+    // Juice: the right answer pops, a wrong pick shakes.
+    val shakeX = remember { Animatable(0f) }
+    val scale = remember { Animatable(1f) }
+    LaunchedEffect(answered) {
+        if (answered && isSelected && !isTarget) {
+            repeat(3) {
+                shakeX.animateTo(10f, tween(45))
+                shakeX.animateTo(-10f, tween(45))
+            }
+            shakeX.animateTo(0f, tween(45))
+        } else if (answered && isTarget) {
+            scale.animateTo(1.05f, spring(dampingRatio = Spring.DampingRatioMediumBouncy))
+            scale.animateTo(1f, spring())
+        }
+    }
     Card(
         colors = CardDefaults.cardColors(containerColor = container),
         shape = RoundedCornerShape(14.dp),
@@ -356,6 +450,11 @@ private fun OptionCard(
         modifier = Modifier
             .fillMaxWidth()
             .padding(vertical = 5.dp)
+            .graphicsLayer {
+                translationX = shakeX.value
+                scaleX = scale.value
+                scaleY = scale.value
+            }
             .testTag("quiz_option"),
     ) {
         Row(
@@ -508,6 +607,7 @@ private fun MapQuestionContent(
             ) {
                 Card {
                     Column(Modifier.padding(12.dp)) {
+                        ComboChip(state)
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             FlagImage(
                                 resId = data.flagRes[target.cca2] ?: 0,
@@ -571,6 +671,7 @@ fun ResultsScreen(
 ) {
     val total = state.questions.size
     val score = state.score
+    val fraction = if (total == 0) 0f else score.toFloat() / total
     val message = when {
         total > 0 && score == total -> stringResource(R.string.results_perfect)
         total > 0 && score >= total * 3 / 4 -> stringResource(R.string.results_great)
@@ -578,8 +679,15 @@ fun ResultsScreen(
         else -> stringResource(R.string.results_keep_trying)
     }
     val data = state.data
+    val earnedXp = score * XP_PER_CORRECT + SESSION_BONUS_XP +
+        if (total > 0 && score == total) PERFECT_BONUS_XP else 0
+    val haptics = rememberHaptics()
+    LaunchedEffect(Unit) {
+        if (fraction >= 0.7f) haptics.celebrate()
+    }
 
-    Column(
+    Box(Modifier.fillMaxSize()) {
+        Column(
         Modifier
             .fillMaxSize()
             .safeDrawingPadding()
@@ -590,7 +698,7 @@ fun ResultsScreen(
         Text(stringResource(R.string.results_title), style = MaterialTheme.typography.headlineSmall)
         Spacer(Modifier.height(20.dp))
         ScoreRing(
-            fraction = if (total == 0) 0f else score.toFloat() / total,
+            fraction = fraction,
             modifier = Modifier.size(150.dp),
             ringWidth = 14.dp,
             color = if (total > 0 && score >= total / 2) CorrectGreen else MaterialTheme.colorScheme.primary,
@@ -606,7 +714,9 @@ fun ResultsScreen(
             style = MaterialTheme.typography.titleMedium,
             textAlign = TextAlign.Center,
         )
-        Spacer(Modifier.height(18.dp))
+        Spacer(Modifier.height(8.dp))
+        XpBadge(earnedXp)
+        Spacer(Modifier.height(12.dp))
 
         LazyColumn(Modifier.weight(1f)) {
             items(state.results) { result ->
@@ -670,5 +780,34 @@ fun ResultsScreen(
         ) {
             Text(stringResource(R.string.results_home), style = MaterialTheme.typography.titleMedium)
         }
+        }
+        if (fraction >= 0.7f) {
+            ConfettiOverlay(Modifier.matchParentSize())
+        }
+    }
+}
+
+/** Bouncy "+120 XP" badge on the results screen. */
+@Composable
+private fun XpBadge(earnedXp: Int) {
+    val scale = remember { Animatable(0.3f) }
+    LaunchedEffect(Unit) {
+        scale.animateTo(1f, spring(dampingRatio = Spring.DampingRatioMediumBouncy))
+    }
+    Card(
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.tertiaryContainer,
+        ),
+        modifier = Modifier.graphicsLayer {
+            scaleX = scale.value
+            scaleY = scale.value
+        },
+    ) {
+        Text(
+            stringResource(R.string.results_xp, earnedXp),
+            style = MaterialTheme.typography.titleMedium,
+            color = MaterialTheme.colorScheme.onTertiaryContainer,
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+        )
     }
 }

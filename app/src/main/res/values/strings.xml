@@ -42,13 +42,19 @@
     <string name="stats_answers">Odpowiedzi</string>
     <string name="stats_accuracy">Skuteczność</string>
     <string name="stats_day_streak">Seria dni</string>
+    <string name="stats_level">Poziom %1$d</string>
+    <string name="stats_xp">%1$d XP</string>
 
     <string name="quiz_question_flags">Do którego kraju należy ta flaga?</string>
     <string name="quiz_question_capitals">Jakie miasto jest stolicą tego kraju?</string>
     <string name="quiz_question_map">Wskaż na mapie:</string>
     <string name="quiz_question_history">W którym roku miało miejsce to wydarzenie?</string>
+    <string name="quiz_question_history_order">Które wydarzenie było wcześniej?</string>
+    <string name="quiz_question_history_country">Z którym krajem wiąże się to wydarzenie?</string>
     <string name="quiz_question_flag_reverse">Która flaga należy do tego kraju?</string>
     <string name="quiz_reveal">Nie wiem — pokaż</string>
+    <string name="quiz_combo">🔥 Seria x%1$d!</string>
+    <string name="results_xp">+%1$d XP</string>
     <string name="quiz_progress">Pytanie %1$d z %2$d</string>
     <string name="quiz_correct">Dobrze!</string>
     <string name="quiz_wrong">Niestety, to %1$s</string>

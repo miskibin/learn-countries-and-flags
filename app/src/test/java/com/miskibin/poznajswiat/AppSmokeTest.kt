@@ -92,12 +92,13 @@ class AppSmokeTest {
         rule.activityRule.scenario.onActivity { it.onBackPressedDispatcher.onBackPressed() }
         awaitText("Stolice")
 
-        // History quiz: answer one year question
+        // History quiz: the question form is random (year / order / country),
+        // so assert on the shared structure only.
         rule.onNodeWithText("Dopasuj daty do wydarzeń z dziejów świata")
             .performScrollTo().performClick()
-        awaitText("W którym roku miało miejsce to wydarzenie?")
+        awaitText("Pytanie 1 z")
         rule.waitUntil(15_000) {
-            rule.onAllNodesWithTag("quiz_option").fetchSemanticsNodes().size == 4
+            rule.onAllNodesWithTag("quiz_option").fetchSemanticsNodes().size >= 2
         }
         screenshot("08_history_quiz")
         rule.onAllNodesWithTag("quiz_option")[0].performClick()
