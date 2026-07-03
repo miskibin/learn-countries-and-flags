@@ -121,13 +121,23 @@ fun AppNav() {
                 key = "quiz-$session-$cont",
                 factory = QuizViewModel.Factory(app, session, cont),
             )
-            QuizScreen(viewModel = vm, onExit = { navController.popBackStack() })
+            QuizScreen(
+                viewModel = vm,
+                onExit = { navController.popBackStack() },
+                onOpenEvent = { id -> navController.navigate("timeline?focus=$id") },
+            )
         }
-        composable("timeline") {
+        composable(
+            route = "timeline?focus={focus}",
+            arguments = listOf(
+                navArgument("focus") { type = NavType.IntType; defaultValue = -1 },
+            ),
+        ) { entry ->
             TimelineScreen(
                 data = data,
                 onOpenCountry = { cca2 -> navController.navigate("country/$cca2") },
                 onBack = { navController.popBackStack() },
+                focusEventId = entry.arguments?.getInt("focus") ?: -1,
             )
         }
         composable(

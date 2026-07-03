@@ -1,5 +1,6 @@
 package com.miskibin.poznajswiat.ui.history
 
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
@@ -15,6 +16,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -29,6 +31,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -52,9 +55,31 @@ fun TimelineScreen(
     data: AppData,
     onOpenCountry: (String) -> Unit,
     onBack: () -> Unit,
+    focusEventId: Int = -1,
 ) {
     val grouped: List<Pair<String, List<HistoryEvent>>> = remember(data) {
         data.events.groupBy { eraName(it.year) }.toList()
+    }
+    val listState = rememberLazyListState()
+    // Flat item order mirrors the LazyColumn content (header + events per era)
+    // so we can scroll straight to a focused event.
+    val focusIndex = remember(grouped, focusEventId) {
+        if (focusEventId < 0) -1
+        else {
+            var idx = 0
+            var found = -1
+            for ((_, events) in grouped) {
+                idx++ // era header
+                for (event in events) {
+                    if (event.id == focusEventId) found = idx
+                    idx++
+                }
+            }
+            found
+        }
+    }
+    LaunchedEffect(focusIndex) {
+        if (focusIndex >= 0) listState.scrollToItem((focusIndex - 1).coerceAtLeast(0))
     }
 
     Scaffold(
@@ -76,6 +101,7 @@ fun TimelineScreen(
             Modifier
                 .padding(padding)
                 .fillMaxSize(),
+            state = listState,
             contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
         ) {
             grouped.forEach { (era, events) ->
@@ -88,7 +114,12 @@ fun TimelineScreen(
                     )
                 }
                 items(events, key = { it.id }) { event ->
-                    EventCard(event, data, onOpenCountry)
+                    EventCard(
+                        event,
+                        data,
+                        onOpenCountry,
+                        highlighted = event.id == focusEventId,
+                    )
                     Spacer(Modifier.height(10.dp))
                 }
             }
@@ -102,11 +133,24 @@ fun EventCard(
     data: AppData,
     onOpenCountry: ((String) -> Unit)?,
     modifier: Modifier = Modifier,
+    highlighted: Boolean = false,
 ) {
     val dark = isSystemInDarkTheme()
     val accent = event.tags.firstOrNull()?.let { themeColor(it, dark) }
         ?: MaterialTheme.colorScheme.primary
-    Card(modifier.fillMaxWidth()) {
+    Card(
+        modifier
+            .fillMaxWidth()
+            .then(
+                if (highlighted) {
+                    Modifier.border(
+                        2.dp,
+                        MaterialTheme.colorScheme.primary,
+                        RoundedCornerShape(12.dp),
+                    )
+                } else Modifier
+            ),
+    ) {
         Row(Modifier.padding(14.dp)) {
             Surface(
                 color = accent.copy(alpha = 0.16f),

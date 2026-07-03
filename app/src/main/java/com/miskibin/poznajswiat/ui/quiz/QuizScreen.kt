@@ -90,6 +90,7 @@ import com.miskibin.poznajswiat.ui.rememberHaptics
 fun QuizScreen(
     viewModel: QuizViewModel,
     onExit: () -> Unit,
+    onOpenEvent: ((Int) -> Unit)? = null,
 ) {
     val state by viewModel.state.collectAsState()
     val haptics = rememberHaptics()
@@ -172,7 +173,7 @@ fun QuizScreen(
                         if (q.kind == QuizMode.MAP) {
                             MapQuestionContent(viewModel, state, q)
                         } else {
-                            OptionsQuestionContent(viewModel, state, q)
+                            OptionsQuestionContent(viewModel, state, q, onOpenEvent)
                         }
                     }
                 }
@@ -186,6 +187,7 @@ private fun OptionsQuestionContent(
     viewModel: QuizViewModel,
     state: QuizUiState,
     q: Question,
+    onOpenEvent: ((Int) -> Unit)? = null,
 ) {
     val data = state.data ?: return
     Box(Modifier.fillMaxSize()) {
@@ -320,6 +322,7 @@ private fun OptionsQuestionContent(
             viewModel = viewModel,
             state = state,
             q = q,
+            onOpenEvent = onOpenEvent,
             modifier = Modifier.align(Alignment.BottomCenter),
         )
     }
@@ -335,6 +338,7 @@ private fun AnswerFeedbackPanel(
     viewModel: QuizViewModel,
     state: QuizUiState,
     q: Question,
+    onOpenEvent: ((Int) -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
     val data = state.data ?: return
@@ -396,7 +400,11 @@ private fun AnswerFeedbackPanel(
                     val timelineContext = remember(q.event.id) {
                         buildTimelineContext(q.event, data.events)
                     }
-                    ContextTimeline(target = q.event, context = timelineContext)
+                    ContextTimeline(
+                        target = q.event,
+                        context = timelineContext,
+                        onEventClick = onOpenEvent?.let { open -> { event -> open(event.id) } },
+                    )
                 } else {
                     Row(verticalAlignment = Alignment.Top) {
                         Icon(

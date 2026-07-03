@@ -1,18 +1,22 @@
 package com.miskibin.poznajswiat.ui.history
 
-import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -20,13 +24,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.miskibin.poznajswiat.data.EVENT_THEMES
@@ -158,204 +158,107 @@ fun buildTimelineContext(
     return TimelineContext(related, lo, hi)
 }
 
-/** "44 p.n.e." / "1939" for an arbitrary year. */
-private fun yearLabel(year: Int): String = if (year < 0) "${-year} p.n.e." else "$year"
+/**
+ * Polish gap label for the distance between two consecutive events, correctly
+ * declining "rok/lata/lat": 1→"rok"; a units digit of 2-4 (but not the 12-14
+ * teens)→"lata"; everything else→"lat". Zero-year gaps collapse to a same-year
+ * note. This relational spacing turns the raw year numbers into a felt sense of
+ * how far apart events sit — the magnitude anchor that makes the order stick.
+ */
+private fun gapLabel(diff: Int): String {
+    val n = abs(diff)
+    if (n == 0) return "ten sam rok"
+    val word = when {
+        n == 1 -> "rok"
+        n % 10 in 2..4 && n % 100 !in 12..14 -> "lata"
+        else -> "lat"
+    }
+    return "$n $word później"
+}
 
-/** One resolved related marker: its screen position, side and label row. */
-private data class Marker(
-    val event: HistoryEvent,
-    val fraction: Float,
-    val above: Boolean,
-    val row: Int,
-    val color: Color,
-)
-
-private val BOX_HEIGHT = 132.dp
-private val AXIS_Y = 64.dp
-private val TARGET_LABEL_W = 78.dp
-private val RELATED_LABEL_W = 66.dp
+private const val RAIL_WIDTH_DP = 40
+private const val YEAR_WIDTH_DP = 76
 
 /**
- * Compact context timeline built for MEMORABILITY. It exploits several
- * well-studied memory principles:
+ * Compact VERTICAL context chronology built for MEMORABILITY. Events (the
+ * [target] merged with its [context] relatives) are laid out top-to-bottom in
+ * year order as single-line rows threaded onto a continuous vertical rail. The
+ * design exploits several well-studied memory principles:
  *
- * - **Dual coding** — every event carries an emoji, pairing a verbal label with
- *   a visual code so it can be retrieved through two independent routes.
- * - **Relational encoding** — the [context]'s related events anchor the target
- *   to things the learner may already know, on a single linear year scale.
- * - **Isolation effect (von Restorff)** — the target is enlarged and wrapped in
- *   a soft primary-colored halo so it pops out from its neighbours and is the
- *   item most likely to be remembered.
- * - **Schema building** — theme chips and per-marker colors reinforce a stable
+ * - **Spatial + relational encoding** — a top-to-bottom chronological list maps
+ *   time onto a stable vertical axis, anchoring the target against neighbours
+ *   the learner may already know instead of a hard-to-read horizontal scale.
+ * - **Magnitude anchoring** — a tiny Polish gap label between each pair of rows
+ *   ("33 lata później") names the felt distance in time, so the ordering is
+ *   remembered as intervals, not just isolated dates.
+ * - **Dual coding** — every row carries an emoji node on the rail, pairing a
+ *   verbal label with a visual code retrievable through two independent routes.
+ * - **Isolation effect (von Restorff)** — exactly one row, the target, is
+ *   wrapped in a rounded primaryContainer surface with enlarged text and emoji
+ *   so it pops out from its neighbours and is the item most likely to be recalled.
+ * - **Schema building** — theme chips and per-row year colors reinforce a stable
  *   color→theme mapping, letting the category be recalled from hue alone.
- *
- * Positioning mirrors [TimelineBar]: a [BoxWithConstraints] with `offset(x)`
- * placement, but the scale here is LINEAR across [TimelineContext.windowStart]..
- * [TimelineContext.windowEnd] rather than piecewise by era.
  */
 @Composable
 fun ContextTimeline(
     target: HistoryEvent,
     context: TimelineContext,
     modifier: Modifier = Modifier,
+    onEventClick: ((HistoryEvent) -> Unit)? = null,
 ) {
     val dark = isSystemInDarkTheme()
-    val primary = MaterialTheme.colorScheme.primary
-    val track = MaterialTheme.colorScheme.outline.copy(alpha = 0.35f)
+    val rail = MaterialTheme.colorScheme.outline.copy(alpha = 0.35f)
     val muted = MaterialTheme.colorScheme.onSurfaceVariant
 
-    val start = context.windowStart
-    val end = context.windowEnd
-    val span = (end - start).coerceAtLeast(1)
-
-    fun fractionOf(year: Int): Float =
-        ((year - start).toFloat() / span).coerceIn(0f, 1f)
-
-    val targetFraction = remember(target, start, end) { fractionOf(target.year) }
-
-    // Resolve each related event to a side and label row. Alternate above/below
-    // to reduce collisions, then bump close neighbours (< 10% of width) onto a
-    // second row on the same side — at most two rows per side.
-    val markers = remember(context, dark) {
-        val used = mutableListOf<Marker>()
-        context.related.forEachIndexed { index, e ->
-            val frac = fractionOf(e.year)
-            val above = index % 2 == 0
-            val sameSide = used.filter { it.above == above }
-            var row = 0
-            while (row < 2 && sameSide.any { it.row == row && abs(it.fraction - frac) < 0.10f }) {
-                row++
-            }
-            if (row > 1) row = 1
-            val color = e.tags.firstOrNull()?.let { themeColor(it, dark) } ?: muted
-            used += Marker(e, frac, above, row, color)
-        }
-        used
+    // Merge target + related and lay them out chronologically.
+    val rows = remember(target, context) {
+        (listOf(target) + context.related).sortedBy { it.year }
     }
 
-    // First-tags of target + related, de-duplicated in encounter order.
-    val chipTags = remember(target, context) {
-        (target.tags.take(1) + context.related.mapNotNull { it.tags.firstOrNull() })
-            .distinct()
+    // First-tags of the shown events, de-duplicated in encounter order.
+    val chipTags = remember(rows) {
+        rows.mapNotNull { it.tags.firstOrNull() }.distinct()
     }
 
     Column(modifier.fillMaxWidth()) {
-        BoxWithConstraints(
+        Column(
             Modifier
                 .fillMaxWidth()
-                .height(BOX_HEIGHT),
+                .heightIn(max = 280.dp)
+                .verticalScroll(rememberScrollState()),
         ) {
-            val w = maxWidth
-
-            fun clampedX(fraction: Float, labelW: Dp): Dp =
-                (w * fraction - labelW / 2).coerceIn(0.dp, (w - labelW).coerceAtLeast(0.dp))
-
-            // Axis, subtle ticks and the target's isolation halo (drawn behind).
-            Canvas(Modifier.fillMaxWidth().height(BOX_HEIGHT)) {
-                val y = AXIS_Y.toPx()
-                drawLine(
-                    track,
-                    Offset(0f, y),
-                    Offset(size.width, y),
-                    strokeWidth = 3.dp.toPx(),
-                    cap = StrokeCap.Round,
+            rows.forEachIndexed { index, event ->
+                val isTarget = event === target
+                val color = event.tags.firstOrNull()?.let { themeColor(it, dark) } ?: muted
+                EventRow(
+                    event = event,
+                    isTarget = isTarget,
+                    color = color,
+                    rail = rail,
+                    onEventClick = onEventClick,
                 )
-                val ticks = 8
-                for (i in 0..ticks) {
-                    val tx = size.width * i / ticks
-                    drawLine(
-                        track,
-                        Offset(tx, y - 3.dp.toPx()),
-                        Offset(tx, y + 3.dp.toPx()),
-                        strokeWidth = 1.dp.toPx(),
+                if (index < rows.lastIndex) {
+                    GapConnector(
+                        label = gapLabel(rows[index + 1].year - event.year),
+                        rail = rail,
+                        muted = muted,
                     )
                 }
-                // Von Restorff halo behind the target emoji.
-                drawCircle(
-                    primary.copy(alpha = 0.15f),
-                    radius = 20.dp.toPx(),
-                    center = Offset(size.width * targetFraction, y),
-                )
-            }
-
-            // Corner year labels.
-            Text(
-                yearLabel(start),
-                style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp),
-                color = muted,
-                modifier = Modifier.align(Alignment.TopStart).offset(y = AXIS_Y + 6.dp),
-            )
-            Text(
-                yearLabel(end),
-                style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp),
-                color = muted,
-                modifier = Modifier.align(Alignment.TopEnd).offset(y = AXIS_Y + 6.dp),
-            )
-
-            // Related markers.
-            markers.forEach { m ->
-                val yOffset = if (m.above) {
-                    AXIS_Y - 44.dp - 14.dp * m.row
-                } else {
-                    AXIS_Y + 8.dp + 14.dp * m.row
-                }
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    modifier = Modifier
-                        .width(RELATED_LABEL_W)
-                        .offset(x = clampedX(m.fraction, RELATED_LABEL_W), y = yOffset),
-                ) {
-                    if (m.above) {
-                        RelatedTitle(m.event.title, m.color)
-                        RelatedYear(m.event.yearLabel, m.color)
-                        RelatedEmoji(m.event.emoji)
-                    } else {
-                        RelatedEmoji(m.event.emoji)
-                        RelatedYear(m.event.yearLabel, m.color)
-                        RelatedTitle(m.event.title, m.color)
-                    }
-                }
-            }
-
-            // Target — enlarged, bold year above, title below, halo behind.
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                modifier = Modifier
-                    .width(TARGET_LABEL_W)
-                    .offset(x = clampedX(targetFraction, TARGET_LABEL_W), y = AXIS_Y - 30.dp),
-            ) {
-                Text(
-                    target.yearLabel,
-                    style = MaterialTheme.typography.labelMedium.copy(
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Bold,
-                    ),
-                    color = primary,
-                    maxLines = 1,
-                )
-                Text(target.emoji.ifEmpty { "📍" }, fontSize = 22.sp, maxLines = 1)
-                Text(
-                    target.title,
-                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
-                    color = MaterialTheme.colorScheme.onSurface,
-                    textAlign = TextAlign.Center,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.width(TARGET_LABEL_W),
-                )
             }
         }
 
         // Theme chips — the color→theme schema legend.
         if (chipTags.isNotEmpty()) {
-            Spacer(Modifier.height(6.dp))
-            Row(Modifier.fillMaxWidth()) {
+            Spacer(Modifier.height(8.dp))
+            Row(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
                 chipTags.forEach { tag ->
                     val c = themeColor(tag, dark)
                     Surface(
                         color = c.copy(alpha = 0.18f),
                         shape = RoundedCornerShape(50),
-                        modifier = Modifier.padding(end = 4.dp),
                     ) {
                         Text(
                             tag,
@@ -371,30 +274,111 @@ fun ContextTimeline(
     }
 }
 
+/** One chronology row: rail node (emoji), colored year, then the title. */
 @Composable
-private fun RelatedEmoji(emoji: String) {
-    Text(emoji.ifEmpty { "•" }, fontSize = 15.sp, maxLines = 1)
+private fun EventRow(
+    event: HistoryEvent,
+    isTarget: Boolean,
+    color: Color,
+    rail: Color,
+    onEventClick: ((HistoryEvent) -> Unit)?,
+) {
+    val rowModifier = Modifier
+        .fillMaxWidth()
+        .then(
+            if (onEventClick != null) Modifier.clickable { onEventClick(event) }
+            else Modifier,
+        )
+
+    val content: @Composable () -> Unit = {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Rail(rail) {
+                Text(
+                    event.emoji.ifEmpty { "•" },
+                    fontSize = if (isTarget) 20.sp else 15.sp,
+                    maxLines = 1,
+                )
+            }
+            Text(
+                event.yearLabel,
+                style = if (isTarget) {
+                    MaterialTheme.typography.titleSmall
+                } else {
+                    MaterialTheme.typography.labelMedium
+                },
+                fontWeight = FontWeight.Bold,
+                color = color,
+                maxLines = 1,
+                modifier = Modifier.width(YEAR_WIDTH_DP.dp),
+            )
+            Text(
+                event.title,
+                style = if (isTarget) {
+                    MaterialTheme.typography.titleMedium
+                } else {
+                    MaterialTheme.typography.bodyMedium
+                },
+                color = MaterialTheme.colorScheme.onSurface,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f),
+            )
+        }
+    }
+
+    if (isTarget) {
+        // Von Restorff: the single highlighted row.
+        Surface(
+            color = MaterialTheme.colorScheme.primaryContainer,
+            contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+            shape = RoundedCornerShape(12.dp),
+            modifier = rowModifier,
+        ) {
+            content()
+        }
+    } else {
+        Box(rowModifier) { content() }
+    }
 }
 
+/** The short spacer between two rows: rail continues plus the Polish gap label. */
 @Composable
-private fun RelatedYear(label: String, color: Color) {
-    Text(
-        label,
-        style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
-        color = color,
-        maxLines = 1,
-    )
+private fun GapConnector(label: String, rail: Color, muted: Color) {
+    Row(
+        modifier = Modifier.fillMaxWidth().height(20.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Rail(rail) {}
+        Text(
+            label,
+            style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
+            color = muted,
+            maxLines = 1,
+            modifier = Modifier.padding(start = 4.dp),
+        )
+    }
 }
 
+/**
+ * The fixed-width rail column: a continuous 2.dp vertical line running the full
+ * height of the row with [node] (an emoji marker, or nothing on connectors)
+ * centered on top of it.
+ */
 @Composable
-private fun RelatedTitle(title: String, color: Color) {
-    Text(
-        title,
-        style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp),
-        color = color,
-        textAlign = TextAlign.Center,
-        maxLines = 1,
-        overflow = TextOverflow.Ellipsis,
-        modifier = Modifier.width(RELATED_LABEL_W),
-    )
+private fun Rail(rail: Color, node: @Composable () -> Unit) {
+    Box(
+        modifier = Modifier.width(RAIL_WIDTH_DP.dp).fillMaxHeight(),
+        contentAlignment = Alignment.Center,
+    ) {
+        Box(
+            Modifier
+                .width(2.dp)
+                .fillMaxHeight()
+                .background(rail),
+        )
+        node()
+    }
 }
