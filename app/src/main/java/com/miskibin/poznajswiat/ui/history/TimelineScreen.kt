@@ -20,9 +20,11 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -32,7 +34,11 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -127,6 +133,11 @@ fun TimelineScreen(
     }
 }
 
+/**
+ * Timeline card: header row = year + flags, then emoji+title, then the
+ * description. Tapping the card expands the mini-wiki (background and
+ * consequences) when available.
+ */
 @Composable
 fun EventCard(
     event: HistoryEvent,
@@ -138,6 +149,8 @@ fun EventCard(
     val dark = isSystemInDarkTheme()
     val accent = event.tags.firstOrNull()?.let { themeColor(it, dark) }
         ?: MaterialTheme.colorScheme.primary
+    var expanded by rememberSaveable(event.id) { mutableStateOf(false) }
+
     Card(
         modifier
             .fillMaxWidth()
@@ -149,62 +162,78 @@ fun EventCard(
                         RoundedCornerShape(12.dp),
                     )
                 } else Modifier
+            )
+            .then(
+                if (event.wiki.isNotEmpty()) {
+                    Modifier.clickable { expanded = !expanded }
+                } else Modifier
             ),
     ) {
-        Row(Modifier.padding(14.dp)) {
-            Surface(
-                color = accent.copy(alpha = 0.16f),
-                shape = RoundedCornerShape(10.dp),
+        Column(Modifier.padding(14.dp)) {
+            // Header: year chip on the left, flags on the right.
+            Row(
+                Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text(
-                    event.yearLabel,
-                    style = MaterialTheme.typography.titleMedium,
-                    color = accent,
-                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-                )
-            }
-            Spacer(Modifier.width(12.dp))
-            Column(Modifier.weight(1f)) {
-                Text(
-                    if (event.emoji.isNotEmpty()) "${event.emoji} ${event.title}" else event.title,
-                    style = MaterialTheme.typography.titleMedium,
-                )
-                Spacer(Modifier.height(4.dp))
-                Text(
-                    event.desc,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                if (event.countries.isNotEmpty()) {
-                    Spacer(Modifier.height(8.dp))
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(10.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        event.countries.forEach { code ->
-                            val country = data.byCode[code] ?: return@forEach
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                modifier = if (onOpenCountry != null) {
+                Surface(
+                    color = accent.copy(alpha = 0.16f),
+                    shape = RoundedCornerShape(10.dp),
+                ) {
+                    Text(
+                        event.yearLabel,
+                        style = MaterialTheme.typography.titleMedium,
+                        color = accent,
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                    )
+                }
+                Spacer(Modifier.weight(1f))
+                event.countries.forEach { code ->
+                    FlagImage(
+                        resId = data.flagRes[code] ?: 0,
+                        contentDescription = data.byCode[code]?.namePl,
+                        modifier = Modifier
+                            .width(34.dp)
+                            .padding(start = 6.dp)
+                            .then(
+                                if (onOpenCountry != null) {
                                     Modifier.clickable { onOpenCountry(code) }
-                                } else Modifier,
-                            ) {
-                                FlagImage(
-                                    resId = data.flagRes[code] ?: 0,
-                                    contentDescription = country.namePl,
-                                    modifier = Modifier.width(28.dp),
-                                    corner = 4.dp,
-                                )
-                                Spacer(Modifier.width(5.dp))
-                                Text(
-                                    country.namePl,
-                                    style = MaterialTheme.typography.labelLarge,
-                                    color = MaterialTheme.colorScheme.primary,
-                                )
-                            }
-                        }
+                                } else Modifier
+                            ),
+                        corner = 4.dp,
+                    )
+                }
+            }
+            Spacer(Modifier.height(8.dp))
+            Text(
+                if (event.emoji.isNotEmpty()) "${event.emoji} ${event.title}" else event.title,
+                style = MaterialTheme.typography.titleMedium,
+            )
+            Spacer(Modifier.height(4.dp))
+            Text(
+                event.desc,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            if (event.wiki.isNotEmpty()) {
+                AnimatedVisibility(visible = expanded) {
+                    Column {
+                        Spacer(Modifier.height(8.dp))
+                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                        Spacer(Modifier.height(8.dp))
+                        Text(
+                            event.wiki,
+                            style = MaterialTheme.typography.bodyMedium,
+                        )
                     }
                 }
+                Spacer(Modifier.height(6.dp))
+                Text(
+                    stringResource(
+                        if (expanded) R.string.event_collapse else R.string.event_expand
+                    ),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.primary,
+                )
             }
         }
     }

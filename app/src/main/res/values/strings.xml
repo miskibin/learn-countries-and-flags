@@ -16,6 +16,11 @@
     <string name="mode_history_title">Historia</string>
     <string name="mode_history_desc">Dopasuj daty do wydarzeń z dziejów świata</string>
     <string name="timeline_title">Oś czasu</string>
+    <string name="event_expand">Czytaj więcej ▾</string>
+    <string name="event_collapse">Zwiń ▴</string>
+    <string name="detail_wiki_geo">Geografia</string>
+    <string name="detail_wiki_hist">Historia</string>
+    <string name="detail_wiki_now">Współcześnie</string>
     <string name="timeline_desc">Najważniejsze wydarzenia w historii świata</string>
 
     <string name="review_title">Powtórka dnia</string>

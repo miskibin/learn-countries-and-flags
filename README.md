@@ -25,8 +25,8 @@ Aplikacja na Androida do nauki krajów świata — ich **flag**, **stolic** i **
 
 ## Dane
 
-- 197 krajów (członkowie ONZ + Watykan, Palestyna, Tajwan, Kosowo) z sąsiadami i regionami.
-- 150 wydarzeń historycznych po polsku, rozłożonych równomiernie po epokach i kontynentach.
+- 197 krajów (członkowie ONZ + Watykan, Palestyna, Tajwan, Kosowo) z sąsiadami, regionami i mini-stronami wiki (geografia, historia, współczesność).
+- 150 wydarzeń historycznych po polsku z mini-stronami wiki (tło i skutki), rozłożonych po epokach i kontynentach; sesje historyczne są jednotematyczne i chronologiczne, a kraje uczysz od największych.
 - Nazwy krajów po polsku z zestawu [mledoze/countries](https://github.com/mledoze/countries) (licencja ODbL).
 - Flagi z [flagcdn.com](https://flagcdn.com) (domena publiczna).
 - Granice państw z [world.geo.json](https://github.com/johan/world.geo.json) (Natural Earth, domena publiczna), wstępnie przetworzone do kompaktowego formatu.

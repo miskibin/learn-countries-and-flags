@@ -119,6 +119,8 @@ fun CountryDetailScreen(
             FactCard(fact = country.fact)
             Spacer(Modifier.height(12.dp))
 
+            WikiSection(stringResource(R.string.detail_wiki_geo), country.wikiGeo)
+
             Text(
                 stringResource(R.string.detail_location),
                 style = MaterialTheme.typography.titleMedium,
@@ -141,6 +143,9 @@ fun CountryDetailScreen(
                 )
             }
             Spacer(Modifier.height(12.dp))
+
+            WikiSection(stringResource(R.string.detail_wiki_hist), country.wikiHist)
+            WikiSection(stringResource(R.string.detail_wiki_now), country.wikiNow)
 
             if (country.neighbors.isNotEmpty()) {
                 Text(
@@ -223,6 +228,25 @@ fun CountryDetailScreen(
             Spacer(Modifier.height(24.dp))
         }
     }
+}
+
+@Composable
+private fun WikiSection(title: String, text: String) {
+    if (text.isEmpty()) return
+    Text(
+        title,
+        style = MaterialTheme.typography.titleMedium,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
+    Spacer(Modifier.height(6.dp))
+    Card {
+        Text(
+            text,
+            style = MaterialTheme.typography.bodyMedium,
+            modifier = Modifier.padding(14.dp),
+        )
+    }
+    Spacer(Modifier.height(12.dp))
 }
 
 @Composable

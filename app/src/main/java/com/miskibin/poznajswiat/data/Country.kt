@@ -14,6 +14,12 @@ data class Country(
     val hasPoly: Boolean,
     val subregionPl: String = "",
     val neighbors: List<String> = emptyList(),
+    /** Land area in km2 — bigger countries are taught first. */
+    val area: Double = 0.0,
+    /** Mini-wiki sections (Polish). */
+    val wikiGeo: String = "",
+    val wikiHist: String = "",
+    val wikiNow: String = "",
 )
 
 @Serializable
@@ -27,6 +33,8 @@ data class HistoryEvent(
     val tags: List<String> = emptyList(),
     /** Single pictogram for dual-coding the event in timelines and quizzes. */
     val emoji: String = "",
+    /** Mini-wiki: background and consequences, two paragraphs (Polish). */
+    val wiki: String = "",
 ) {
     /** "44 p.n.e." / "1939" */
     val yearLabel: String

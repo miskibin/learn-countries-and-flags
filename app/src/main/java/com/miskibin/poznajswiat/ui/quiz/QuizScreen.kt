@@ -162,6 +162,15 @@ fun QuizScreen(
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp),
             )
+            state.sessionLabel?.let { label ->
+                Spacer(Modifier.height(6.dp))
+                Text(
+                    label,
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.padding(horizontal = 16.dp),
+                )
+            }
             Spacer(Modifier.height(12.dp))
             // Fresh slide-in for every question keeps the session lively.
             // AnimatedVisibility lays its content out like a Box, so the

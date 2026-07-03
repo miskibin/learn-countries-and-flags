@@ -131,6 +131,7 @@ class AppSmokeTest {
         rule.onNodeWithText("Warszawa").performClick()
         awaitText("Twoje postępy")
         awaitText("Sąsiedzi")
+        awaitText("Geografia") // mini-wiki section
         awaitText("Wydarzenia historyczne")
         screenshot("07_detail")
     }

@@ -18,6 +18,12 @@ class AppData(
 ) {
     val eventsById: Map<Int, HistoryEvent> = events.associateBy { it.id }
 
+    /** World rank by land area (0 = largest) — used to teach big countries first. */
+    val areaRank: Map<String, Int> =
+        countries.sortedByDescending { it.area }
+            .mapIndexed { i, c -> c.cca2 to i }
+            .toMap()
+
     fun forContinent(continent: String?): List<Country> =
         if (continent.isNullOrEmpty()) countries
         else countries.filter { it.continent == continent }

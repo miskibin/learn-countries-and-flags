@@ -7,6 +7,7 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.miskibin.poznajswiat.data.AppData
 import com.miskibin.poznajswiat.data.Country
+import com.miskibin.poznajswiat.data.EVENT_THEMES
 import com.miskibin.poznajswiat.data.HistoryEvent
 import com.miskibin.poznajswiat.data.MASTERY_STREAK
 import com.miskibin.poznajswiat.data.Progress
@@ -89,6 +90,8 @@ data class QuizUiState(
     val finished: Boolean = false,
     /** Consecutive correct answers within this session. */
     val combo: Int = 0,
+    /** Session focus shown under the progress bar, e.g. "Motyw: Wojny". */
+    val sessionLabel: String? = null,
 ) {
     val current: Question? get() = questions.getOrNull(index)
 
@@ -114,28 +117,49 @@ class QuizViewModel(
         viewModelScope.launch {
             val data = AppData.get(getApplication())
             val progress = repo.progress.first()
+            var label: String? = null
             val questions = when (session) {
                 SESSION_REVIEW -> buildReviewSession(data, progress)
                 SESSION_MIX -> buildMixSession(data, progress)
-                QuizMode.HISTORY.id -> buildHistorySession(data, progress)
+                QuizMode.HISTORY.id -> {
+                    val (theme, qs) = buildHistorySession(data, progress)
+                    label = theme?.let { "Motyw: $it" }
+                    qs
+                }
                 else -> buildCountrySession(data, progress, QuizMode.fromId(session))
             }
-            _state.value = QuizUiState(loading = false, data = data, questions = questions)
+            _state.value = QuizUiState(
+                loading = false,
+                data = data,
+                questions = questions,
+                sessionLabel = label,
+            )
         }
     }
 
-    /** Weighted pick without replacement: lower streak -> more likely. */
+    /**
+     * Bigger countries first: weight multiplier by world rank of land area,
+     * so learners build the map from its anchors down to microstates.
+     */
+    private fun areaTier(data: AppData, country: Country): Int {
+        val rank = data.areaRank[country.cca2] ?: Int.MAX_VALUE
+        return when {
+            rank < 60 -> 3
+            rank < 130 -> 2
+            else -> 1
+        }
+    }
+
+    /** Weighted pick without replacement. */
     private fun <T> pickWeighted(
         pool: List<T>,
         count: Int,
-        streakOf: (T) -> Int,
+        weightOf: (T) -> Int,
     ): List<T> {
         val remaining = pool.toMutableList()
         val picked = mutableListOf<T>()
         repeat(min(count, remaining.size)) {
-            val weights = remaining.map {
-                (MASTERY_STREAK + 1) - min(streakOf(it), MASTERY_STREAK)
-            }
+            val weights = remaining.map { weightOf(it).coerceAtLeast(1) }
             var roll = Random.nextInt(weights.sum())
             var idx = 0
             while (roll >= weights[idx]) {
@@ -145,6 +169,10 @@ class QuizViewModel(
         }
         return picked
     }
+
+    /** Lower streak -> more likely (1..4). */
+    private fun streakWeight(streak: Int): Int =
+        (MASTERY_STREAK + 1) - min(streak, MASTERY_STREAK)
 
     private fun countryQuestion(data: AppData, mode: QuizMode, target: Country): Question {
         if (mode == QuizMode.MAP) return Question(kind = mode, target = target)
@@ -227,7 +255,7 @@ class QuizViewModel(
         val pool = data.forContinent(continent)
             .let { if (mode == QuizMode.MAP) mapPool(it) else it }
         val targets = pickWeighted(pool, QUESTIONS_PER_SESSION) {
-            progress.streak(mode, it.cca2)
+            streakWeight(progress.streak(mode, it.cca2)) * areaTier(data, it)
         }
         return targets.map { countryQuestion(data, mode, it) }
     }
@@ -249,22 +277,42 @@ class QuizViewModel(
             }
         }
         val countryPart = pickWeighted(pairs, QUESTIONS_PER_SESSION) { (mode, c) ->
-            progress.streak(mode, c.cca2)
+            streakWeight(progress.streak(mode, c.cca2)) * areaTier(data, c)
         }.map { (mode, c) -> countryQuestion(data, mode, c) }
 
         val relatedEvents = data.events.filter { e -> e.countries.any { it in poolCodes } }
         val historyPart = pickWeighted(relatedEvents, 2) {
-            progress.streak(QuizMode.HISTORY, it.id.toString())
+            streakWeight(progress.streak(QuizMode.HISTORY, it.id.toString()))
         }.map { historyQuestion(data, it) }
 
         return (countryPart + historyPart).shuffled()
     }
 
-    private fun buildHistorySession(data: AppData, progress: Progress): List<Question> {
-        val targets = pickWeighted(data.events, QUESTIONS_PER_SESSION) {
-            progress.streak(QuizMode.HISTORY, it.id.toString())
+    /**
+     * One THEME per history session, questions in chronological order —
+     * related events studied together form a coherent narrative instead of
+     * random jumps across millennia.
+     */
+    private fun buildHistorySession(data: AppData, progress: Progress): Pair<String?, List<Question>> {
+        val byTheme = EVENT_THEMES.mapNotNull { theme ->
+            val events = data.events.filter { theme in it.tags }
+            if (events.size < 4) null
+            else theme to events
         }
-        return targets.map { historyQuestion(data, it) }
+        if (byTheme.isEmpty()) {
+            val targets = pickWeighted(data.events, QUESTIONS_PER_SESSION) {
+                streakWeight(progress.streak(QuizMode.HISTORY, it.id.toString()))
+            }
+            return null to targets.sortedBy { it.year }.map { historyQuestion(data, it) }
+        }
+        // Prefer themes with the most unmastered material.
+        val theme = pickWeighted(byTheme, 1) { (_, events) ->
+            events.count { !progress.isMastered(QuizMode.HISTORY, it.id.toString()) }
+        }.first()
+        val targets = pickWeighted(theme.second, QUESTIONS_PER_SESSION) {
+            streakWeight(progress.streak(QuizMode.HISTORY, it.id.toString()))
+        }
+        return theme.first to targets.sortedBy { it.year }.map { historyQuestion(data, it) }
     }
 
     private fun buildReviewSession(data: AppData, progress: Progress): List<Question> {
